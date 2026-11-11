@@ -196,6 +196,7 @@ impl DisplaySourceError for ParseError {
                     "resolve",
                     "retry",
                     "retry-interval",
+                    "retry-timeout",
                     "skip",
                     "tls-max",
                     "tls-min",

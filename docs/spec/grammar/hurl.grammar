@@ -155,6 +155,7 @@ option:
   | resolve-option
   | retry-option
   | retry-interval-option
+  | retry-timeout-option
   | skip-option
   | tls-max-option
   | tls-min-option
@@ -243,6 +244,8 @@ repeat-option: "repeat" ":" count-option lt
 retry-option: "retry" ":" count-option lt
 
 retry-interval-option: "retry-interval" ":" duration-option lt
+
+retry-timeout-option: "retry-timeout" ":" duration-option lt
 
 skip-option: "skip" ":" boolean-option lt
 

@@ -127,6 +127,7 @@ where
         .arg(commands::repeat())
         .arg(commands::retry())
         .arg(commands::retry_interval())
+        .arg(commands::retry_timeout())
         .arg(commands::secret())
         .arg(commands::secrets_file())
         .arg(commands::test())
@@ -247,6 +248,7 @@ fn parse_arg_matches(
     let resolves = resolves(arg_matches, default_options.resolves);
     let retry = retry(arg_matches, default_options.retry)?;
     let retry_interval = retry_interval(arg_matches, default_options.retry_interval)?;
+    let retry_timeout = retry_timeout(arg_matches, default_options.retry_timeout)?;
     let secrets = secret(arg_matches, default_options.secrets)?;
     let ssl_no_revoke = ssl_no_revoke(arg_matches, default_options.ssl_no_revoke);
     let tap_file = tap_file(arg_matches, default_options.tap_file);
@@ -318,6 +320,7 @@ fn parse_arg_matches(
         resolves,
         retry,
         retry_interval,
+        retry_timeout,
         secrets,
         ssl_no_revoke,
         tap_file,
@@ -902,6 +905,16 @@ fn retry_interval(
 ) -> Result<Duration, CliOptionsError> {
     match get::<String>(arg_matches, "retry_interval") {
         Some(s) => duration::duration_from_str(&s, DurationUnit::MilliSecond),
+        None => Ok(default_value),
+    }
+}
+
+fn retry_timeout(
+    arg_matches: &ArgMatches,
+    default_value: Option<Duration>,
+) -> Result<Option<Duration>, CliOptionsError> {
+    match get::<String>(arg_matches, "retry_timeout") {
+        Some(s) => duration::duration_from_str(&s, DurationUnit::MilliSecond).map(Some),
         None => Ok(default_value),
     }
 }

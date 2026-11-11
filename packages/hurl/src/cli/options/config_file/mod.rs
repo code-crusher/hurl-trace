@@ -152,6 +152,7 @@ fn parse_option(reader: &mut Reader, options: &mut CliOptions) -> Result<(), Con
         "proxy-header" => parse_option_proxy_header(reader, options, option_pos),
         "retry" => parse_option_retry(reader, options),
         "retry-interval" => parse_option_retry_interval(reader, options),
+        "retry-timeout" => parse_option_retry_timeout(reader, options),
         "secret" => parse_option_secret(reader, options),
         "test" => parse_option_test(reader, options),
         "tls-max" => parse_option_tls_max(reader, options),
@@ -582,6 +583,21 @@ fn parse_option_retry_interval(
         .map_err(|_| {
             ConfigFileError::new(value_pos, "Option --retry-interval has an invalid duration")
         })?;
+    Ok(())
+}
+
+fn parse_option_retry_timeout(
+    reader: &mut Reader,
+    options: &mut CliOptions,
+) -> Result<(), ConfigFileError> {
+    parse_value_separator(reader)?;
+    let value_pos = reader.cursor().pos;
+    let value = parse_value(reader)?;
+    options.retry_timeout = Some(
+        duration::duration_from_str(&value, DurationUnit::MilliSecond).map_err(|_| {
+            ConfigFileError::new(value_pos, "Option --retry-timeout has an invalid duration")
+        })?,
+    );
     Ok(())
 }
 
@@ -1228,6 +1244,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_option_retry_timeout() {
+        let mut reader = Reader::new("--retry-timeout=2s\n");
+        let mut options = CliOptions::default();
+        assert_eq!(options.retry_timeout, None);
+        assert!(parse_option(&mut reader, &mut options).is_ok());
+        assert_eq!(
+            options.retry_timeout,
+            Some(std::time::Duration::from_millis(2000))
+        );
+        assert_eq!(reader.cursor().pos, Pos::new(2, 1));
+    }
+
+    #[test]
     fn test_parse_option_pretty() {
         let mut reader = Reader::new("--pretty\n");
         let mut options = CliOptions::default();
@@ -1318,6 +1347,15 @@ mod tests {
         assert_eq!(
             err.message,
             "Option --retry-interval has an invalid duration"
+        );
+
+        let mut reader = Reader::new("--retry-timeout=abc\n");
+        let mut options = CliOptions::default();
+        let err = parse_option(&mut reader, &mut options).unwrap_err();
+        assert_eq!(err.pos, Pos::new(1, 17));
+        assert_eq!(
+            err.message,
+            "Option --retry-timeout has an invalid duration"
         );
     }
 

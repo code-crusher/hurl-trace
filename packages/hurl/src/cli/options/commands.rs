@@ -631,6 +631,15 @@ pub fn retry_interval() -> clap::Arg {
         .num_args(1)
 }
 
+pub fn retry_timeout() -> clap::Arg {
+    clap::Arg::new("retry_timeout")
+        .long("retry-timeout")
+        .value_name("MILLISECONDS")
+        .help("Maximum time spent retrying an entry")
+        .help_heading("Run options")
+        .num_args(1)
+}
+
 pub fn secret() -> clap::Arg {
     clap::Arg::new("secret")
         .long("secret")

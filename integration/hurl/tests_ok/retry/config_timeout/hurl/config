@@ -1,0 +1,3 @@
+--retry 10
+--retry-interval 10s
+--retry-timeout 1s

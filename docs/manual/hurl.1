@@ -1,4 +1,4 @@
-.TH hurl 1 "06 Nov 2026" "hurl 9.0.0" " Hurl Manual"
+.TH hurl 1 "11 Nov 2026" "hurl 9.0.0" " Hurl Manual"
 .SH NAME
 
 hurl - run and test HTTP requests.
@@ -610,6 +610,18 @@ Duration in milliseconds between each retry. Default is 1000 ms.
 You can specify time units in the retry interval expression. Set Hurl to use a retry interval of 2 seconds with `--retry-interval 2s` or set it to 500 milliseconds with `--retry-interval 500ms`. No spaces allowed.
 
 Environment variables: HURL_RETRY_INTERVAL
+
+.IP "--retry-timeout <MILLISECONDS> "
+
+Maximum total time spent retrying an entry, whatever the retry count is. When this duration is reached, no more retries are done and the last result is used.
+
+This option is useful to poll an endpoint with an unlimited number of retries (`retry: -1`) while guaranteeing the run will eventually stop. It also bounds the total time spent when the retry interval is high.
+
+You can specify time units in the retry timeout expression. Set Hurl to use a retry timeout of 2 seconds with `--retry-timeout 2s` or set it to 500 milliseconds with `--retry-timeout 500ms`. No spaces allowed.
+
+See also \fI--retry\fP and \fI--retry-interval\fP.
+
+Environment variables: HURL_RETRY_TIMEOUT
 
 .IP "--secret <NAME=VALUE> "
 

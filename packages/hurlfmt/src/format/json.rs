@@ -350,6 +350,7 @@ impl ToJson for EntryOption {
             OptionKind::Resolve(value) => JValue::String(value.to_string()),
             OptionKind::Retry(value) => value.to_json(),
             OptionKind::RetryInterval(value) => value.to_json(),
+            OptionKind::RetryTimeout(value) => value.to_json(),
             OptionKind::Skip(value) => value.to_json(),
             OptionKind::TlsMax(value) => JValue::String(value.to_string()),
             OptionKind::TlsMin(value) => JValue::String(value.to_string()),

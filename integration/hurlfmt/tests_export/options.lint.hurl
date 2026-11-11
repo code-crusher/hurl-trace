@@ -49,6 +49,9 @@ retry: 4
 retry-interval: 1000ms
 retry-interval: 1000ms
 retry-interval: 1s
+retry-timeout: 1000ms
+retry-timeout: 1000ms
+retry-timeout: 1s
 skip: false
 tls-max: 1.2
 tls-min: 1.0
@@ -103,6 +106,7 @@ repeat: {{repeat}}
 resolve: {{resolve}}
 retry: {{retry}}
 retry-interval: {{retry-interval}}
+retry-timeout: {{retry-timeout}}
 skip: {{skip}}
 tls-max: {{tls-max}}
 tls-min: {{tls-min}}

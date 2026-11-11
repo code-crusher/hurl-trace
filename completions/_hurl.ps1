@@ -86,6 +86,7 @@ Register-ArgumentCompleter -Native -CommandName 'hurl' -ScriptBlock {
             [CompletionResult]::new('--resolve', 'resolve', [CompletionResultType]::ParameterName, 'Provide a custom address for a specific HOST and PORT pair')
             [CompletionResult]::new('--retry', 'retry', [CompletionResultType]::ParameterName, 'Maximum number of retries, 0 for no retries, -1 for unlimited retries')
             [CompletionResult]::new('--retry-interval', 'retry-interval', [CompletionResultType]::ParameterName, 'Interval in milliseconds before a retry')
+            [CompletionResult]::new('--retry-timeout', 'retry-timeout', [CompletionResultType]::ParameterName, 'Maximum time spent retrying an entry')
             [CompletionResult]::new('--secret', 'secret', [CompletionResultType]::ParameterName, 'Define a variable which value is secret')
             [CompletionResult]::new('--secrets-file', 'secrets-file', [CompletionResultType]::ParameterName, 'Define a secrets file in which you define your secrets')
             [CompletionResult]::new('--ssl-no-revoke', 'ssl-no-revoke', [CompletionResultType]::ParameterName, '(Windows) Tell Hurl to disable certificate revocation checks')

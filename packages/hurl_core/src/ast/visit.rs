@@ -408,6 +408,7 @@ pub fn walk_entry_option<V: Visitor>(visitor: &mut V, option: &EntryOption) {
         OptionKind::Resolve(value) => visitor.visit_template(value),
         OptionKind::Retry(value) => visitor.visit_count_option(value),
         OptionKind::RetryInterval(value) => visitor.visit_duration_option(value),
+        OptionKind::RetryTimeout(value) => visitor.visit_duration_option(value),
         OptionKind::Skip(value) => visitor.visit_bool_option(value),
         OptionKind::TlsMax(value) => visitor.visit_template(value),
         OptionKind::TlsMin(value) => visitor.visit_template(value),

@@ -86,6 +86,7 @@ pub fn parse(reader: &mut Reader) -> ParseResult<EntryOption> {
         "resolve" => option_resolve(reader)?,
         "retry" => option_retry(reader)?,
         "retry-interval" => option_retry_interval(reader)?,
+        "retry-timeout" => option_retry_timeout(reader)?,
         "skip" => option_skip(reader)?,
         "tls-max" => option_tls_max(reader)?,
         "tls-min" => option_tls_min(reader)?,
@@ -308,6 +309,11 @@ fn option_retry(reader: &mut Reader) -> ParseResult<OptionKind> {
 fn option_retry_interval(reader: &mut Reader) -> ParseResult<OptionKind> {
     let value = non_recover(duration_option, reader)?;
     Ok(OptionKind::RetryInterval(value))
+}
+
+fn option_retry_timeout(reader: &mut Reader) -> ParseResult<OptionKind> {
+    let value = non_recover(duration_option, reader)?;
+    Ok(OptionKind::RetryTimeout(value))
 }
 
 fn option_skip(reader: &mut Reader) -> ParseResult<OptionKind> {
@@ -544,9 +550,11 @@ fn variable_value(reader: &mut Reader) -> ParseResult<VariableValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{I64, LineTerminator, Number, Template, TemplateElement, Whitespace};
+    use crate::ast::{
+        Duration, I64, LineTerminator, Number, Template, TemplateElement, U64, Whitespace,
+    };
     use crate::reader::Pos;
-    use crate::types::ToSource;
+    use crate::types::{DurationUnit, ToSource};
 
     #[test]
     fn test_option_insecure() {
@@ -632,6 +640,38 @@ mod tests {
             option.kind,
             OptionKind::NoJsonpathCoercion(BooleanOption::Literal(true))
         );
+    }
+
+    #[test]
+    fn test_option_retry_timeout() {
+        let mut reader = Reader::new("retry-timeout: 30s");
+        let option = parse(&mut reader).unwrap();
+        assert_eq!(
+            option.kind,
+            OptionKind::RetryTimeout(DurationOption::Literal(Duration::new(
+                U64::new(30, "30".to_source()),
+                Some(DurationUnit::Second)
+            )))
+        );
+        assert_eq!(option.kind.identifier(), "retry-timeout");
+        assert_eq!(option.kind.to_string(), "retry-timeout: 30s");
+    }
+
+    #[test]
+    fn test_option_retry_timeout_placeholder() {
+        let mut reader = Reader::new("retry-timeout: {{timeout}}");
+        let option = parse(&mut reader).unwrap();
+        assert!(matches!(
+            option.kind,
+            OptionKind::RetryTimeout(DurationOption::Placeholder(_))
+        ));
+    }
+
+    #[test]
+    fn test_option_retry_timeout_error() {
+        let mut reader = Reader::new("retry-timeout: ###");
+        let error = parse(&mut reader).err().unwrap();
+        assert!(!error.recoverable);
     }
 
     #[test]

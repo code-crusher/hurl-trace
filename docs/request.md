@@ -240,6 +240,7 @@ repeat: 10                      # repeat the request
 resolve: foo.com:8000:127.0.0.1 # custom address by hosts
 retry: 10                       # number of retry if HTTP/asserts errors
 retry-interval: 500ms           # interval between retry
+retry-timeout: 30s              # maximum total time spent retrying
 skip: false                     # skip this request
 tls-max: 1.2                    # maximum TLS version
 tls-min: 1.0                    # minimum TLS version

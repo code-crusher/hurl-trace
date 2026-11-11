@@ -108,6 +108,7 @@ pub struct CliOptions {
     pub resolves: Vec<String>,
     pub retry: Option<Count>,
     pub retry_interval: Duration,
+    pub retry_timeout: Option<Duration>,
     pub secrets: HashMap<String, String>,
     pub ssl_no_revoke: bool,
     pub tap_file: Option<PathBuf>,
@@ -419,6 +420,7 @@ impl Default for CliOptions {
             resolves: Vec::new(),
             retry: None,
             retry_interval: Duration::from_millis(1000),
+            retry_timeout: None,
             secrets: HashMap::new(),
             ssl_no_revoke: false,
             tap_file: None,
@@ -536,6 +538,7 @@ impl CliOptions {
         let resolves = self.resolves.clone();
         let retry = self.retry;
         let retry_interval = self.retry_interval;
+        let retry_timeout = self.retry_timeout;
         let ssl_no_revoke = self.ssl_no_revoke;
         let negotiate = self.negotiate;
         let ntlm = self.ntlm;
@@ -597,6 +600,7 @@ impl CliOptions {
             .resolves(&resolves)
             .retry(retry)
             .retry_interval(retry_interval)
+            .retry_timeout(retry_timeout)
             .ssl_no_revoke(ssl_no_revoke)
             .timeout(timeout)
             .tls_max(tls_max)

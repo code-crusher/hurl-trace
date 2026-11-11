@@ -293,6 +293,10 @@ pub fn get_entry_options(
                 let value = eval_duration_option(value, variables, DurationUnit::MilliSecond)?;
                 entry_options.retry_interval = value;
             }
+            OptionKind::RetryTimeout(value) => {
+                let value = eval_duration_option(value, variables, DurationUnit::MilliSecond)?;
+                entry_options.retry_timeout = Some(value);
+            }
             OptionKind::Skip(value) => {
                 let value = eval_boolean_option(value, variables)?;
                 entry_options.skip = value;
@@ -623,6 +627,52 @@ mod tests {
                 source_info: SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
             },
         })
+    }
+
+    fn retry_timeout_option_template() -> DurationOption {
+        // {{timeout}}
+        DurationOption::Placeholder(Placeholder {
+            space0: Whitespace {
+                value: String::new(),
+                source_info: SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+            },
+            expr: Expr {
+                kind: ExprKind::Variable(Variable {
+                    name: "timeout".to_string(),
+                    source_info: SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                }),
+                source_info: SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+            },
+            space1: Whitespace {
+                value: String::new(),
+                source_info: SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+            },
+        })
+    }
+
+    #[test]
+    fn test_eval_retry_timeout_option() {
+        let mut variables = VariableSet::default();
+
+        let option = DurationOption::Literal(Duration::new(
+            U64::new(30, "30".to_source()),
+            Some(DurationUnit::Second),
+        ));
+        assert_eq!(
+            eval_duration_option(&option, &variables, DurationUnit::MilliSecond).unwrap(),
+            std::time::Duration::from_secs(30)
+        );
+
+        variables.insert("timeout".to_string(), Value::Number(Number::Integer(5)));
+        assert_eq!(
+            eval_duration_option(
+                &retry_timeout_option_template(),
+                &variables,
+                DurationUnit::MilliSecond
+            )
+            .unwrap(),
+            std::time::Duration::from_millis(5)
+        );
     }
 
     #[test]

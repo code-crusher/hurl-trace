@@ -627,6 +627,18 @@ You can specify time units in the retry interval expression. Set Hurl to use a r
 
 Environment variables: HURL_RETRY_INTERVAL
 
+#### --retry-timeout <MILLISECONDS> {#retry-timeout}
+
+Maximum total time spent retrying an entry, whatever the retry count is. When this duration is reached, no more retries are done and the last result is used.
+
+This option is useful to poll an endpoint with an unlimited number of retries (`retry: -1`) while guaranteeing the run will eventually stop. It also bounds the total time spent when the retry interval is high.
+
+You can specify time units in the retry timeout expression. Set Hurl to use a retry timeout of 2 seconds with `--retry-timeout 2s` or set it to 500 milliseconds with `--retry-timeout 500ms`. No spaces allowed.
+
+See also [`--retry`](#retry) and [`--retry-interval`](#retry-interval).
+
+Environment variables: HURL_RETRY_TIMEOUT
+
 #### --secret <NAME=VALUE> {#secret}
 
 Define secret value to be redacted from logs and report. When defined, secrets can be used as variable everywhere variables are used.

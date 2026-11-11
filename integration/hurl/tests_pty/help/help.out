@@ -127,6 +127,7 @@ Run options:
       --retry <NUM>                    Maximum number of retries, 0 for no retries, -1 for unlimited
                                        retries
       --retry-interval <MILLISECONDS>  Interval in milliseconds before a retry [default: 1000]
+      --retry-timeout <MILLISECONDS>   Maximum time spent retrying an entry
       --secret <NAME=VALUE>            Define a variable which value is secret
       --secrets-file <FILE>            Define a secrets file in which you define your secrets
       --test                           Activate test mode (use parallel execution)

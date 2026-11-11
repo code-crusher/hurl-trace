@@ -70,6 +70,7 @@ pub struct RunnerOptionsBuilder {
     resolves: Vec<String>,
     retry: Option<Count>,
     retry_interval: Duration,
+    retry_timeout: Option<Duration>,
     skip: bool,
     ssl_no_revoke: bool,
     timeout: Duration,
@@ -129,6 +130,7 @@ impl Default for RunnerOptionsBuilder {
             resolves: vec![],
             retry: None,
             retry_interval: Duration::from_millis(1000),
+            retry_timeout: None,
             skip: false,
             ssl_no_revoke: false,
             timeout: Duration::from_secs(300),
@@ -447,6 +449,14 @@ impl RunnerOptionsBuilder {
         self
     }
 
+    /// Sets the maximum total time spent retrying an entry.
+    ///
+    /// When this duration is reached, no more retries are done. Default is no timeout.
+    pub fn retry_timeout(&mut self, retry_timeout: Option<Duration>) -> &mut Self {
+        self.retry_timeout = retry_timeout;
+        self
+    }
+
     /// Skip the run without executing any request.
     pub fn skip(&mut self, skip: bool) -> &mut Self {
         self.skip = skip;
@@ -560,6 +570,7 @@ impl RunnerOptionsBuilder {
             resolves: self.resolves.clone(),
             retry: self.retry,
             retry_interval: self.retry_interval,
+            retry_timeout: self.retry_timeout,
             skip: self.skip,
             ssl_no_revoke: self.ssl_no_revoke,
             timeout: self.timeout,
@@ -668,6 +679,8 @@ pub struct RunnerOptions {
     pub(crate) retry: Option<Count>,
     /// Sets duration between each retry.
     pub(crate) retry_interval: Duration,
+    /// Sets maximum total time spent retrying an entry.
+    pub(crate) retry_timeout: Option<Duration>,
     /// Skip the run without executing any request.
     pub(crate) skip: bool,
     /// Disables certificate revocation checks for SSL backends where such behavior is present.

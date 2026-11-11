@@ -172,6 +172,10 @@ under flaky conditions. Asserts can be explicit (with an [`[Asserts]` section](/
 Retries can be set globally for every request (see [`--retry`] and [`--retry-interval`]), 
 or activated on a particular request with an [`[Options]` section](/docs/request.md#options).
 
+A retry timeout can also be set (see [`--retry-timeout`]): it bounds the total time spent retrying an entry, whatever
+the retry count is. It is particularly useful to poll an endpoint with an unlimited number of retries (`retry: -1`)
+while guaranteeing the run will eventually stop.
+
 For example, in this Hurl file, first we create a new job then we poll the new job until it's completed:
 
 ```hurl
@@ -189,6 +193,7 @@ GET http://api.example.org/jobs/{{job_id}}
 [Options]
 retry: 10   # maximum number of retry, -1 for unlimited
 retry-interval: 300ms
+retry-timeout: 30s   # give up retrying after 30 seconds, whatever the retry count is
 HTTP 200
 [Asserts]
 jsonpath "$.state" == "COMPLETED"
@@ -255,6 +260,7 @@ For complete reference, below is a diagram for the executed entries.
 [Asserts]: /docs/response.md#asserts
 [`--retry`]: /docs/manual.md#retry
 [`--retry-interval`]: /docs/manual.md#retry-interval
+[`--retry-timeout`]: /docs/manual.md#retry-timeout
 [`delay`]: /docs/manual.md#retry 
 [`repeat`]: /docs/manual.md#repeat
 [`redirects` query]: /docs/asserting-response.md#redirects-assert

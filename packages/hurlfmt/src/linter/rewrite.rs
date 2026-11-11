@@ -502,6 +502,9 @@ impl Lint for OptionKind {
             OptionKind::RetryInterval(value) => {
                 lint_duration_option(value, DurationUnit::MilliSecond)
             }
+            OptionKind::RetryTimeout(value) => {
+                lint_duration_option(value, DurationUnit::MilliSecond)
+            }
             OptionKind::Skip(value) => value.lint(),
             OptionKind::TlsMax(value) => value.lint(),
             OptionKind::TlsMin(value) => value.lint(),

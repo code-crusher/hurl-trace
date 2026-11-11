@@ -1,0 +1,80 @@
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Entry options:
+* retry: -1
+* retry-interval: 10s
+* retry-timeout: 300ms
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response:
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+* Received 207 bytes in <<<\d+>>> ms
+*
+* Assert status code
+*   --> tests_failed/retry/retry_timeout.hurl:6:6
+*    |
+*    | GET http://localhost:8000/not-found
+*    | ...
+*  6 | HTTP 200
+*    |      ^^^ actual value is <404>
+*    |
+*
+* Retry on entry 1 (count: 1/ꝏ, interval: 10000 ms)
+* ------------------------------------------------------------------------------
+* Executing entry 1
+*
+* Cookie store:
+*
+* Request:
+* GET http://localhost:8000/not-found
+*
+* Request can be run with the following curl command:
+* curl 'http://localhost:8000/not-found'
+*
+> GET /not-found HTTP/1.1
+> Host: localhost:8000
+> Accept: */*
+> User-Agent: hurl/<<<.*?>>>
+>
+* Response:
+*
+< HTTP/1.1 404 NOT FOUND
+< Content-Length: 207
+< Content-Type: text/html; charset=utf-8
+< Date: <<<.*?>>>
+< Server: Flask Server
+< Via: waitress
+<
+* Received 207 bytes in <<<\d+>>> ms
+*
+* Retry timeout reached, no more retry
+*
+error: Assert status code
+  --> tests_failed/retry/retry_timeout.hurl:6:6
+   |
+   | GET http://localhost:8000/not-found
+   | ...
+ 6 | HTTP 200
+   |      ^^^ actual value is <404>
+   |
+

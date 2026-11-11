@@ -78,6 +78,7 @@ const HURL_PROGRESS_BAR: &str = "HURL_PROGRESS_BAR";
 const HURL_PROXY_HEADER: &str = "HURL_PROXY_HEADER";
 const HURL_RETRY: &str = "HURL_RETRY";
 const HURL_RETRY_INTERVAL: &str = "HURL_RETRY_INTERVAL";
+const HURL_RETRY_TIMEOUT: &str = "HURL_RETRY_TIMEOUT";
 const HURL_SECRET_PREFIX: &str = "HURL_SECRET_";
 const HURL_TEST: &str = "HURL_TEST";
 const HURL_TLS_MAX: &str = "HURL_TLS_MAX";
@@ -308,6 +309,13 @@ impl EnvVars {
     pub fn retry_interval(&self) -> Option<&str> {
         self.hurl_env_vars
             .get(HURL_RETRY_INTERVAL)
+            .map(|v| v.as_str())
+    }
+
+    /// Returns the env var for retry timeout duration.
+    pub fn retry_timeout(&self) -> Option<&str> {
+        self.hurl_env_vars
+            .get(HURL_RETRY_TIMEOUT)
             .map(|v| v.as_str())
     }
 
@@ -725,6 +733,20 @@ fn retry_interval(
     }
 }
 
+fn retry_timeout(
+    env_vars: &EnvVars,
+    default_value: Option<Duration>,
+) -> Result<Option<Duration>, CliOptionsError> {
+    match env_vars.retry_timeout() {
+        Some(retry_timeout) => {
+            duration::duration_from_str(retry_timeout, DurationUnit::MilliSecond)
+                .map(Some)
+                .map_err(|e| err_from_cli_err(e, HURL_RETRY_TIMEOUT))
+        }
+        None => Ok(default_value),
+    }
+}
+
 fn test(env_vars: &EnvVars, default_value: bool) -> bool {
     env_vars.test().unwrap_or(default_value)
 }
@@ -825,6 +847,7 @@ pub fn parse_env_vars(
     let proxy_headers = proxy_headers(env_vars, default_options.proxy_headers)?;
     let retry = retry(env_vars, default_options.retry)?;
     let retry_interval = retry_interval(env_vars, default_options.retry_interval)?;
+    let retry_timeout = retry_timeout(env_vars, default_options.retry_timeout)?;
     let secrets = secrets(env_vars, default_options.secrets)?;
     let timeout = timeout(env_vars, default_options.timeout)?;
     let tls_max = tls_max(env_vars, default_options.tls_max)?;
@@ -865,6 +888,7 @@ pub fn parse_env_vars(
         proxy_headers,
         retry,
         retry_interval,
+        retry_timeout,
         secrets,
         test,
         timeout,
@@ -1075,6 +1099,33 @@ mod tests {
         assert_eq!(
             updated_options.variables["bar"],
             Value::String("BAR".to_string())
+        );
+    }
+
+    #[test]
+    fn test_options_retry_timeout_from_env_var() {
+        // No retry timeout by default.
+        let options = CliOptions::default();
+        assert_eq!(options.retry_timeout, None);
+
+        // Retry timeout is set with the env var.
+        let env_vars = HashMap::from([("HURL_RETRY_TIMEOUT".to_string(), "2s".to_string())]);
+        let env_vars = EnvVars::new(env_vars);
+        let updated_options = parse_env_vars(&env_vars, options).unwrap();
+        assert_eq!(
+            updated_options.retry_timeout,
+            Some(std::time::Duration::from_millis(2000))
+        );
+    }
+
+    #[test]
+    fn test_options_retry_timeout_from_env_var_error() {
+        let env_vars = HashMap::from([("HURL_RETRY_TIMEOUT".to_string(), "abc".to_string())]);
+        let env_vars = EnvVars::new(env_vars);
+        let err = parse_env_vars(&env_vars, CliOptions::default()).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "error: Invalid duration (HURL_RETRY_TIMEOUT environment variable)"
         );
     }
 

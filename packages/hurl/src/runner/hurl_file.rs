@@ -336,6 +336,7 @@ fn run_request(
 ) -> Vec<EntryResult> {
     let mut results = vec![];
     let mut retry_count = 0;
+    let start = Instant::now();
 
     loop {
         let mut result = entry::run(entry, current, http_client, variables, options, logger);
@@ -349,6 +350,11 @@ fn run_request(
         } else {
             false
         };
+        // The retry timeout can only be reached when retries are enabled and a timeout has been set.
+        let retry_timeout_reached = options.retry.is_some()
+            && options
+                .retry_timeout
+                .is_some_and(|retry_timeout| start.elapsed() >= retry_timeout);
         // If `retry_max_reached` is true, we print now a warning, before displaying any assert
         // error so any potential error is the last thing displayed to the user.
         // If `retry_max_reached` is not true (for instance `retry`is true, or there is no error
@@ -357,9 +363,14 @@ fn run_request(
             logger.debug_important("Retry max count reached, no more retry");
             logger.debug("");
         }
+        if retry_timeout_reached {
+            logger.debug_important("Retry timeout reached, no more retry");
+            logger.debug("");
+        }
 
         // The retry does not take into account a possible output Error
-        let retry = options.retry.is_some() && !retry_max_reached && has_error;
+        let retry =
+            options.retry.is_some() && !retry_max_reached && !retry_timeout_reached && has_error;
 
         // Response body can be outputted when:
         // 1. --output is overridden on a request level and there is no error,
@@ -415,7 +426,15 @@ fn run_request(
             listener.on_entry_running(current, last, retry_count);
         }
 
-        thread::sleep(options.retry_interval);
+        // When a retry timeout is set, we never sleep past it so that the total time spent
+        // retrying stays bounded.
+        let sleep = match options.retry_timeout {
+            Some(retry_timeout) => options
+                .retry_interval
+                .min(retry_timeout.saturating_sub(start.elapsed())),
+            None => options.retry_interval,
+        };
+        thread::sleep(sleep);
 
         // TODO: We keep this log because we don't want to change stderr with the changes
         // introduced by <https://github.com/Orange-OpenSource/hurl/issues/1973>
