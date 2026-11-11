@@ -214,6 +214,24 @@ See also [`--resolve`](#resolve).
 
 Tell Hurl to use HTTP Digest authentication
 
+#### --dpop {#dpop}
+
+Use DPoP (Demonstrating Proof of Possession) authentication scheme.
+
+A DPoP proof is computed and signed for each request with the private key given by [`--dpop-private-key`](#dpop-private-key), and sent in the `DPoP` header. If an access token is provided with an `Authorization: Bearer` header, it is sent with the `DPoP` scheme instead of `Bearer`, and the proof is bound to this token.
+
+See <https://datatracker.ietf.org/doc/html/rfc9449>.
+
+Environment variables: HURL_DPOP
+
+#### --dpop-private-key <FILE> {#dpop-private-key}
+
+Specify the PEM encoded ECDSA P-256 private key file used to sign DPoP proofs. This option is required when [`--dpop`](#dpop) is used.
+
+The private key can be encoded in PKCS#8 (`-----BEGIN PRIVATE KEY-----`) or SEC1 (`-----BEGIN EC PRIVATE KEY-----`) format.
+
+Environment variables: HURL_DPOP_PRIVATE_KEY
+
 #### -H, --header <NAME:VALUE> {#header}
 
 Add an extra header to include in information sent. Can be used several times in a command.

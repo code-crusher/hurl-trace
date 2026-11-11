@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use hurl_core::types::{BytesPerSec, Count};
 
+use super::dpop::DpopKey;
 use super::header::HeaderVec;
 use super::request::{FollowLocation, IpResolve, RequestedHttpVersion, TlsVersion};
 
@@ -38,6 +39,9 @@ pub struct ClientOptions {
     pub connects_to: Vec<String>,
     pub cookie_input_file: Option<String>,
     pub digest: bool,
+    /// The private key used to sign DPoP proofs. When set, DPoP is enabled: a proof is computed
+    /// for every request and an `Authorization: DPoP <token>` header is used instead of `Bearer`.
+    pub dpop: Option<DpopKey>,
     pub follow_location: FollowLocation,
     pub headers: HeaderVec,
     pub http_version: RequestedHttpVersion,
@@ -91,6 +95,7 @@ impl Default for ClientOptions {
             connects_to: Vec::new(),
             cookie_input_file: None,
             digest: false,
+            dpop: None,
             follow_location: FollowLocation::default(),
             headers: HeaderVec::new(),
             http_version: RequestedHttpVersion::default(),

@@ -30,6 +30,10 @@ pub enum HttpError {
     InvalidDecoding {
         charset: String,
     },
+    /// The DPoP private key can not be used (reason).
+    InvalidDpopKey(String),
+    /// DPoP is enabled but no private key has been provided.
+    MissingDpopPrivateKey,
     Libcurl {
         code: i32,
         description: String,
@@ -77,9 +81,11 @@ impl HttpError {
             HttpError::CouldNotUncompressResponse { .. } => "Decompression error".to_string(),
             HttpError::InvalidCharset { .. } => "Invalid charset".to_string(),
             HttpError::InvalidDecoding { .. } => "Invalid decoding".to_string(),
+            HttpError::InvalidDpopKey(_) => "Invalid DPoP private key".to_string(),
             HttpError::InvalidUrl(..) => "Invalid URL".to_string(),
             HttpError::Libcurl { .. } => "HTTP connection".to_string(),
             HttpError::LibcurlUnknownOption { .. } => "HTTP connection".to_string(),
+            HttpError::MissingDpopPrivateKey => "Invalid DPoP private key".to_string(),
             HttpError::NoPrimaryIp => "HTTP connection".to_string(),
             HttpError::TooManyRedirect => "HTTP connection".to_string(),
             HttpError::UnsupportedContentEncoding { .. } => "Decompression error".to_string(),
@@ -105,6 +111,9 @@ impl HttpError {
             HttpError::InvalidDecoding { charset } => {
                 format!("could not decode response body with charset '{charset}'")
             }
+            HttpError::InvalidDpopKey(reason) => {
+                format!("the DPoP private key can not be used ({reason})")
+            }
             HttpError::InvalidUrl(url, reason) => {
                 format!("invalid URL <{url}> ({reason})").to_string()
             }
@@ -113,6 +122,9 @@ impl HttpError {
                 option,
                 minimum_version,
             } => format!("Option {option} requires libcurl version {minimum_version} or higher"),
+            HttpError::MissingDpopPrivateKey => {
+                "DPoP authentication requires a private key, use --dpop-private-key".to_string()
+            }
             HttpError::NoPrimaryIp => "No primary IP found in response".to_string(),
             HttpError::TooManyRedirect => "too many redirect".to_string(),
             HttpError::UnsupportedHttpVersion(version) => {

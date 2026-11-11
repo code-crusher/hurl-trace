@@ -153,6 +153,23 @@ pub fn digest() -> clap::Arg {
         .action(clap::ArgAction::SetTrue)
 }
 
+pub fn dpop() -> clap::Arg {
+    clap::Arg::new("dpop")
+        .long("dpop")
+        .help("Use DPoP authentication")
+        .help_heading("HTTP options")
+        .action(clap::ArgAction::SetTrue)
+}
+
+pub fn dpop_private_key() -> clap::Arg {
+    clap::Arg::new("dpop_private_key")
+        .long("dpop-private-key")
+        .value_name("FILE")
+        .help("Specify the private key FILE used to sign DPoP proofs")
+        .help_heading("HTTP options")
+        .num_args(1)
+}
+
 pub fn error_format() -> clap::Arg {
     clap::Arg::new("error_format")
         .long("error-format")

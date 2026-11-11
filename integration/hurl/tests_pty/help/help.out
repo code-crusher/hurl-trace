@@ -24,6 +24,10 @@ HTTP options:
           For a request to the given HOST1:PORT1 pair, connect to HOST2:PORT2 instead
       --digest
           Tell Hurl to use HTTP Digest authentication
+      --dpop
+          Use DPoP authentication
+      --dpop-private-key <FILE>
+          Specify the private key FILE used to sign DPoP proofs
   -H, --header <NAME:VALUE>
           Pass custom header(s) to server
   -0, --http1.0

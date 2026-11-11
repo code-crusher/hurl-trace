@@ -28,6 +28,8 @@ pub const COOKIE: &str = "Cookie";
 pub const CONTENT_ENCODING: &str = "Content-Encoding";
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type>
 pub const CONTENT_TYPE: &str = "Content-Type";
+/// See <https://datatracker.ietf.org/doc/html/rfc9449#section-4>
+pub const DPOP: &str = "DPoP";
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Expect>
 pub const EXPECT: &str = "Expect";
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Location>

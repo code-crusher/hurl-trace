@@ -41,6 +41,8 @@ pub struct RunnerOptionsBuilder {
     cookie_input_file: Option<String>,
     delay: Duration,
     digest: bool,
+    dpop: bool,
+    dpop_private_key: Option<String>,
     fail_with_body: bool,
     follow_location: FollowLocation,
     from_entry: Option<usize>,
@@ -100,6 +102,8 @@ impl Default for RunnerOptionsBuilder {
             cookie_input_file: None,
             delay: Duration::from_millis(0),
             digest: false,
+            dpop: false,
+            dpop_private_key: None,
             fail_with_body: false,
             follow_location: FollowLocation::default(),
             from_entry: None,
@@ -347,6 +351,21 @@ impl RunnerOptionsBuilder {
         self
     }
 
+    /// Enables DPoP authentication.
+    ///
+    /// DPoP requires a private key to sign the proof sent with each request, see
+    /// [`RunnerOptionsBuilder::dpop_private_key`].
+    pub fn dpop(&mut self, dpop: bool) -> &mut Self {
+        self.dpop = dpop;
+        self
+    }
+
+    /// Sets the private key (PEM encoded ECDSA P-256) used to sign DPoP proofs.
+    pub fn dpop_private_key(&mut self, dpop_private_key: Option<String>) -> &mut Self {
+        self.dpop_private_key = dpop_private_key;
+        self
+    }
+
     /// Sets the HTTP Negotiate (SPNEGO) authentication flag.
     pub fn negotiate(&mut self, negotiate: bool) -> &mut Self {
         self.negotiate = negotiate;
@@ -531,6 +550,8 @@ impl RunnerOptionsBuilder {
             continue_on_error: self.continue_on_error,
             cookie_input_file: self.cookie_input_file.clone(),
             digest: self.digest,
+            dpop: self.dpop,
+            dpop_private_key: self.dpop_private_key.clone(),
             fail_with_body: self.fail_with_body,
             follow_location: self.follow_location,
             from_entry: self.from_entry,
@@ -611,6 +632,10 @@ pub struct RunnerOptions {
     pub(crate) cookie_input_file: Option<String>,
     /// Enables HTTP Digest authentication.
     pub(crate) digest: bool,
+    /// Enables DPoP authentication.
+    pub(crate) dpop: bool,
+    /// Sets the private key used to sign DPoP proofs.
+    pub(crate) dpop_private_key: Option<String>,
     /// Outputs response body on standard output if there are any run errors.
     pub(crate) fail_with_body: bool,
     /// Sets follow redirect.

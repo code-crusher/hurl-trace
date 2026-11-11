@@ -209,6 +209,7 @@ compressed: true                # request a compressed response
 connect-timeout: 20s            # connect timeout
 delay: 3s                       # delay for this request (aka sleep)
 digest: true                    # use HTTP digest authentication
+dpop: true                      # use DPoP authentication (requires --dpop-private-key)
 fail-with-body: true            # Output HTTP response even if there are assert errors
 header: foo:bar                 # add a HTTP request for this request
 http1.0: true                   # use HTTP/1.0 protocol version

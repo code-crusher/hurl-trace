@@ -165,6 +165,7 @@ impl DisplaySourceError for ParseError {
                     "connect-to",
                     "delay",
                     "digest",
+                    "dpop",
                     "fail-with-body",
                     "header",
                     "http1.0",

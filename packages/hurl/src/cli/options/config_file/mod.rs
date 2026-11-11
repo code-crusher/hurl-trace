@@ -122,6 +122,8 @@ fn parse_option(reader: &mut Reader, options: &mut CliOptions) -> Result<(), Con
         "connect-timeout" => parse_option_connect_timeout(reader, options),
         "continue-on-error" => parse_option_continue_on_error(reader, options),
         "delay" => parse_option_delay(reader, options),
+        "dpop" => parse_option_dpop(reader, options),
+        "dpop-private-key" => parse_option_dpop_private_key(reader, options),
         "error-format" => parse_option_error_format(reader, options),
         "fail-with-body" => parse_option_fail_with_body(reader, options),
         "header" => parse_option_header(reader, options, option_pos),
@@ -223,6 +225,31 @@ fn parse_option_delay(
     let value = parse_value(reader)?;
     options.delay = duration::duration_from_str(&value, DurationUnit::MilliSecond)
         .map_err(|_| ConfigFileError::new(value_pos, "Option --delay has an invalid duration"))?;
+    Ok(())
+}
+
+fn parse_option_dpop(reader: &mut Reader, options: &mut CliOptions) -> Result<(), ConfigFileError> {
+    expect_no_value(reader)?;
+    options.dpop = true;
+    Ok(())
+}
+
+fn parse_option_dpop_private_key(
+    reader: &mut Reader,
+    options: &mut CliOptions,
+) -> Result<(), ConfigFileError> {
+    parse_value_separator(reader)?;
+    let value_pos = reader.cursor().pos;
+    let value = parse_value(reader)?;
+    let path = Path::new(&value);
+    if !path.is_file() {
+        let message = format!("File {value} does not exist");
+        return Err(ConfigFileError::new(value_pos, &message));
+    }
+    let content = std::fs::read_to_string(path).map_err(|e| {
+        ConfigFileError::new(value_pos, &format!("File {value} can not be read: {e}"))
+    })?;
+    options.dpop_private_key = Some(content);
     Ok(())
 }
 

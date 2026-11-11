@@ -67,6 +67,8 @@ where
         .arg(commands::connect_timeout())
         .arg(commands::connect_to())
         .arg(commands::digest())
+        .arg(commands::dpop())
+        .arg(commands::dpop_private_key())
         .arg(commands::header())
         .arg(commands::http10())
         .arg(commands::http11())
@@ -203,6 +205,8 @@ fn parse_arg_matches(
     let curl_file = curl_file(arg_matches, default_options.curl_file);
     let delay = delay(arg_matches, default_options.delay)?;
     let digest = digest(arg_matches, default_options.digest);
+    let dpop = dpop(arg_matches, default_options.dpop);
+    let dpop_private_key = dpop_private_key(arg_matches, default_options.dpop_private_key)?;
     let error_format = error_format(arg_matches, default_options.error_format)?;
     let fail_with_body = fail_with_body(arg_matches, default_options.fail_with_body);
     let file_root = file_root(arg_matches, default_options.file_root);
@@ -277,6 +281,8 @@ fn parse_arg_matches(
         curl_file,
         delay,
         digest,
+        dpop,
+        dpop_private_key,
         error_format,
         fail_with_body,
         file_root,
@@ -462,6 +468,35 @@ fn digest(arg_matches: &ArgMatches, default_value: bool) -> bool {
         true
     } else {
         default_value
+    }
+}
+
+fn dpop(arg_matches: &ArgMatches, default_value: bool) -> bool {
+    if has_flag(arg_matches, "dpop") {
+        true
+    } else {
+        default_value
+    }
+}
+
+/// Returns the content of the DPoP private key file, given by `--dpop-private-key`.
+fn dpop_private_key(
+    arg_matches: &ArgMatches,
+    default_value: Option<String>,
+) -> Result<Option<String>, CliOptionsError> {
+    match get::<String>(arg_matches, "dpop_private_key") {
+        None => Ok(default_value),
+        Some(filename) => {
+            if !Path::new(&filename).is_file() {
+                let message = format!("File {filename} does not exist");
+                Err(CliOptionsError::Error(message))
+            } else {
+                let content = fs::read_to_string(&filename).map_err(|e| {
+                    CliOptionsError::Error(format!("File {filename} can not be read: {e}"))
+                })?;
+                Ok(Some(content))
+            }
+        }
     }
 }
 

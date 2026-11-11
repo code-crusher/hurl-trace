@@ -1,4 +1,4 @@
-.TH hurl 1 "06 Nov 2026" "hurl 9.0.0" " Hurl Manual"
+.TH hurl 1 "11 Nov 2026" "hurl 9.0.0" " Hurl Manual"
 .SH NAME
 
 hurl - run and test HTTP requests.
@@ -197,6 +197,24 @@ See also \fI--resolve\fP.
 .IP "--digest "
 
 Tell Hurl to use HTTP Digest authentication
+
+.IP "--dpop "
+
+Use DPoP (Demonstrating Proof of Possession) authentication scheme.
+
+A DPoP proof is computed and signed for each request with the private key given by \fI--dpop-private-key\fP, and sent in the `DPoP` header. If an access token is provided with an `Authorization: Bearer` header, it is sent with the `DPoP` scheme instead of `Bearer`, and the proof is bound to this token.
+
+See <https://datatracker.ietf.org/doc/html/rfc9449>.
+
+Environment variables: HURL_DPOP
+
+.IP "--dpop-private-key <FILE> "
+
+Specify the PEM encoded ECDSA P-256 private key file used to sign DPoP proofs. This option is required when \fI--dpop\fP is used.
+
+The private key can be encoded in PKCS#8 (`-----BEGIN PRIVATE KEY-----`) or SEC1 (`-----BEGIN EC PRIVATE KEY-----`) format.
+
+Environment variables: HURL_DPOP_PRIVATE_KEY
 
 .IP "-H, --header <NAME:VALUE> "
 

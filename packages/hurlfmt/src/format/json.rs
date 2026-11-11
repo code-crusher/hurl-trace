@@ -320,6 +320,7 @@ impl ToJson for EntryOption {
             OptionKind::ConnectTimeout(value) => value.to_json(),
             OptionKind::Delay(value) => value.to_json(),
             OptionKind::Digest(value) => value.to_json(),
+            OptionKind::Dpop(value) => value.to_json(),
             OptionKind::FailWithBody(value) => value.to_json(),
             OptionKind::FollowLocation(value) => value.to_json(),
             OptionKind::FollowLocationTrusted(value) => value.to_json(),

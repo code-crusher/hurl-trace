@@ -12,6 +12,8 @@ complete -c hurl -l cookie-jar -d 'Write cookies to FILE after running the sessi
 complete -c hurl -l curl -d 'Export each request to a list of curl commands'
 complete -c hurl -l delay -d 'Sets delay before each request (aka sleep)'
 complete -c hurl -l digest -d 'Tell Hurl to use HTTP Digest authentication'
+complete -c hurl -l dpop -d 'Use DPoP authentication'
+complete -c hurl -l dpop-private-key -d 'Specify the private key FILE used to sign DPoP proofs'
 complete -c hurl -l error-format -d 'Control the format of error messages'
 complete -c hurl -l fail-with-body -d 'Output body response if there are any errors'
 complete -c hurl -l file-root -d 'Set root directory to import files [default: input file directory]'

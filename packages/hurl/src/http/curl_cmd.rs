@@ -773,6 +773,7 @@ mod tests {
             connects_to: vec!["example.com:443:host-47.example.com:443".to_string()],
             cookie_input_file: Some("cookie_file".to_string()),
             digest: false,
+            dpop: None,
             follow_location: FollowLocation::Follow(CredentialForwarding::OnlyInitialHost),
             headers,
             http_version: RequestedHttpVersion::Http10,

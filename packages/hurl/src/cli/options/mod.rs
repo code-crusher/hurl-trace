@@ -66,6 +66,9 @@ pub struct CliOptions {
     pub curl_file: Option<PathBuf>,
     pub delay: Duration,
     pub digest: bool,
+    pub dpop: bool,
+    /// The content of the PEM encoded private key used to sign DPoP proofs.
+    pub dpop_private_key: Option<String>,
     pub error_format: ErrorFormat,
     pub fail_with_body: bool,
     pub file_root: Option<String>,
@@ -377,6 +380,8 @@ impl Default for CliOptions {
             curl_file: None,
             delay: Duration::from_millis(0),
             digest: false,
+            dpop: false,
+            dpop_private_key: None,
             error_format: ErrorFormat::Short,
             fail_with_body: false,
             file_root: None,
@@ -463,6 +468,8 @@ impl CliOptions {
         let cookie_input_file = self.cookie_input_file.clone();
         let delay = self.delay;
         let digest = self.digest;
+        let dpop = self.dpop;
+        let dpop_private_key = self.dpop_private_key.clone();
         let fail_with_body = self.fail_with_body;
         let follow_location = self.follow_location;
         let follow_location_trusted = self.follow_location_trusted;
@@ -561,6 +568,8 @@ impl CliOptions {
             .client_key_file(client_key_file)
             .delay(delay)
             .digest(digest)
+            .dpop(dpop)
+            .dpop_private_key(dpop_private_key)
             .color_stdout(color_stdout.get())
             .compressed(compressed)
             .connect_timeout(connect_timeout)

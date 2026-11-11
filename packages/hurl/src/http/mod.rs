@@ -24,6 +24,7 @@ pub use self::certificate::Certificate;
 pub(crate) use self::client::Client;
 pub use self::cookie_store::{Cookie, CookieStore};
 pub use self::curl_cmd::CurlCmd;
+pub(crate) use self::dpop::DpopKey;
 pub(crate) use self::error::HttpError;
 pub use self::header::{
     ACCEPT_ENCODING, AUTHORIZATION, CONTENT_TYPE, COOKIE, EXPECT, Header, HeaderVec, USER_AGENT,
@@ -49,6 +50,7 @@ mod client;
 mod cookie_store;
 mod curl_cmd;
 mod debug;
+mod dpop;
 mod easy_ext;
 mod error;
 mod header;

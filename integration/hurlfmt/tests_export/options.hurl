@@ -14,6 +14,7 @@ delay: 1s
 delay: 1m
 delay: 1h
 digest: false
+dpop: false
 fail-with-body: false
 header: key: value
 http1.0: false
@@ -75,6 +76,7 @@ connect-to: {{connect-to}}
 connect-timeout: {{connect-timeout}}
 delay: {{delay}}
 digest: {{digest}}
+dpop: {{dpop}}
 fail-with-body: {{fail-with-body}}
 header: {{header}}
 http1.0: {{http10}}

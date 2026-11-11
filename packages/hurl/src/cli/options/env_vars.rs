@@ -17,6 +17,7 @@
  */
 use std::collections::HashMap;
 use std::fmt;
+use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -48,6 +49,8 @@ const HURL_FAIL_WITH_BODY: &str = "HURL_FAIL_WITH_BODY";
 const HURL_CONNECT_TIMEOUT: &str = "HURL_CONNECT_TIMEOUT";
 const HURL_CONTINUE_ON_ERROR: &str = "HURL_CONTINUE_ON_ERROR";
 const HURL_DELAY: &str = "HURL_DELAY";
+const HURL_DPOP: &str = "HURL_DPOP";
+const HURL_DPOP_PRIVATE_KEY: &str = "HURL_DPOP_PRIVATE_KEY";
 const HURL_ERROR_FORMAT: &str = "HURL_ERROR_FORMAT";
 const HURL_LOCATION: &str = "HURL_LOCATION";
 const HURL_LOCATION_TRUSTED: &str = "HURL_LOCATION_TRUSTED";
@@ -139,6 +142,18 @@ impl EnvVars {
     /// Returns the env var for delay duration.
     pub fn delay(&self) -> Option<&str> {
         self.hurl_env_vars.get(HURL_DELAY).map(|v| v.as_str())
+    }
+
+    /// Returns the env var for DPoP authentication.
+    pub fn dpop(&self) -> Option<bool> {
+        self.get_bool(HURL_DPOP)
+    }
+
+    /// Returns the env var for the DPoP private key file.
+    pub fn dpop_private_key(&self) -> Option<&str> {
+        self.hurl_env_vars
+            .get(HURL_DPOP_PRIVATE_KEY)
+            .map(|v| v.as_str())
     }
 
     /// Returns the env var for error format.
@@ -438,6 +453,36 @@ fn delay(env_vars: &EnvVars, default_value: Duration) -> Result<Duration, CliOpt
     match env_vars.delay() {
         Some(delay) => duration::duration_from_str(delay, DurationUnit::MilliSecond)
             .map_err(|e| err_from_cli_err(e, HURL_DELAY)),
+        None => Ok(default_value),
+    }
+}
+
+fn dpop(env_vars: &EnvVars, default_value: bool) -> bool {
+    env_vars.dpop().unwrap_or(default_value)
+}
+
+fn dpop_private_key(
+    env_vars: &EnvVars,
+    default_value: Option<String>,
+) -> Result<Option<String>, CliOptionsError> {
+    match env_vars.dpop_private_key() {
+        Some(filename) => {
+            let path = Path::new(filename);
+            if !path.is_file() {
+                let message = format!("File {filename} does not exist");
+                return Err(err_from_cli_err(
+                    CliOptionsError::Error(message),
+                    HURL_DPOP_PRIVATE_KEY,
+                ));
+            }
+            let content = std::fs::read_to_string(path).map_err(|e| {
+                err_from_cli_err(
+                    CliOptionsError::Error(format!("File {filename} can not be read: {e}")),
+                    HURL_DPOP_PRIVATE_KEY,
+                )
+            })?;
+            Ok(Some(content))
+        }
         None => Ok(default_value),
     }
 }
@@ -802,6 +847,8 @@ pub fn parse_env_vars(
     let fail_with_body = fail_with_body(env_vars, default_options.fail_with_body);
     let continue_on_error = continue_on_error(env_vars, default_options.continue_on_error);
     let delay = delay(env_vars, default_options.delay)?;
+    let dpop = dpop(env_vars, default_options.dpop);
+    let dpop_private_key = dpop_private_key(env_vars, default_options.dpop_private_key)?;
     let error_format = error_format(env_vars, default_options.error_format)?;
     let headers = headers(env_vars, default_options.headers)?;
     let http_version = http_version(env_vars, default_options.http_version);
@@ -842,6 +889,8 @@ pub fn parse_env_vars(
         connect_timeout,
         continue_on_error,
         delay,
+        dpop,
+        dpop_private_key,
         error_format,
         fail_with_body,
         follow_location_trusted,

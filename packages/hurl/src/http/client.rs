@@ -530,6 +530,10 @@ impl Client {
 
         let mut headers = request_spec.headers.clone();
         headers.extend(&options.headers);
+        // DPoP proofs are computed by Hurl, as libcurl doesn't support DPoP (yet).
+        if let Some(dpop_key) = &options.dpop {
+            headers = dpop_key.headers(&headers, &method.to_string(), &url);
+        }
         self.set_headers(
             &headers,
             request_spec.implicit_content_type.as_deref(),

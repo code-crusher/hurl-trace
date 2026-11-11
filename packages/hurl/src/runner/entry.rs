@@ -21,7 +21,7 @@ use hurl_core::ast::{
 use hurl_core::types::Index;
 
 use crate::http;
-use crate::http::{ClientOptions, CurlCmd};
+use crate::http::{ClientOptions, CurlCmd, HttpError};
 use crate::util::logger::{Logger, Verbosity};
 use crate::util::term::WriteMode;
 
@@ -89,7 +89,18 @@ pub fn run(
         }
     };
 
-    let client_options = ClientOptions::from(runner_options, logger.verbosity);
+    let client_options = match ClientOptions::from(runner_options, logger.verbosity, source_info) {
+        Ok(client_options) => client_options,
+        Err(error) => {
+            return EntryResult {
+                entry_index,
+                source_info,
+                errors: vec![error],
+                compressed,
+                ..Default::default()
+            };
+        }
+    };
 
     // Experimental features with cookie storage
     if let Some(s) = request::get_cmd_cookie_storage_set(&entry.request) {
@@ -257,8 +268,38 @@ fn asserts_to_errors(asserts: &[AssertResult]) -> Vec<RunnerError> {
 }
 
 impl ClientOptions {
-    fn from(runner_options: &RunnerOptions, verbosity: Option<Verbosity>) -> Self {
-        ClientOptions {
+    fn from(
+        runner_options: &RunnerOptions,
+        verbosity: Option<Verbosity>,
+        source_info: SourceInfo,
+    ) -> Result<Self, RunnerError> {
+        // When DPoP is enabled, the private key used to sign proofs is required and parsed once
+        // for the whole request (the same key is used for every redirect hop).
+        let dpop_key = if runner_options.dpop {
+            match &runner_options.dpop_private_key {
+                Some(content) => match http::DpopKey::parse(content) {
+                    Ok(dpop_key) => Some(dpop_key),
+                    Err(error) => {
+                        return Err(RunnerError::new(
+                            source_info,
+                            RunnerErrorKind::Http(error),
+                            false,
+                        ));
+                    }
+                },
+                None => {
+                    let error = HttpError::MissingDpopPrivateKey;
+                    return Err(RunnerError::new(
+                        source_info,
+                        RunnerErrorKind::Http(error),
+                        false,
+                    ));
+                }
+            }
+        } else {
+            None
+        };
+        Ok(ClientOptions {
             allow_reuse: runner_options.allow_reuse,
             aws_sigv4: runner_options.aws_sigv4.clone(),
             cacert_file: runner_options.cacert_file.clone(),
@@ -269,6 +310,7 @@ impl ClientOptions {
             connects_to: runner_options.connects_to.clone(),
             cookie_input_file: runner_options.cookie_input_file.clone(),
             digest: runner_options.digest,
+            dpop: dpop_key.clone(),
             follow_location: runner_options.follow_location,
             headers: runner_options.headers.clone(),
             http_version: runner_options.http_version,
@@ -303,7 +345,7 @@ impl ClientOptions {
                 Verbosity::Verbose => http::Verbosity::Verbose,
                 Verbosity::VeryVerbose => http::Verbosity::VeryVerbose,
             }),
-        }
+        })
     }
 }
 

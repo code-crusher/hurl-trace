@@ -1,0 +1,7 @@
+error: Invalid DPoP private key
+  --> tests_failed/dpop/dpop.hurl:1:1
+   |
+ 1 | GET http://localhost:8000/dpop
+   | ^ the DPoP private key can not be used (<<<.*>>>)
+   |
+

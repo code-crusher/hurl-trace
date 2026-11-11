@@ -125,6 +125,7 @@ option:
   | connect-timeout-option
   | delay-option
   | digest-option
+  | dpop-option
   | fail-with-body-option
   | follow-redirect-option
   | follow-redirect-trusted-option
@@ -183,6 +184,8 @@ connect-timeout-option: "connect-timeout" ":" duration-option lt
 delay-option: "delay" ":" duration-option lt
 
 digest-option: "digest" ":" boolean-option lt
+
+dpop-option: "dpop" ":" boolean-option lt
 
 fail-with-body-option: "fail-with-body" ":" boolean-option lt
 

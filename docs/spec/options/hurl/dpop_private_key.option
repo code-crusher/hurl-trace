@@ -1,0 +1,11 @@
+name: dpop_private_key
+long: dpop-private-key
+value: FILE
+help: Specify the private key FILE used to sign DPoP proofs
+help_heading: HTTP options
+config_file: true
+env_var: HURL_DPOP_PRIVATE_KEY
+---
+Specify the PEM encoded ECDSA P-256 private key file used to sign DPoP proofs. This option is required when [`--dpop`](#dpop) is used.
+
+The private key can be encoded in PKCS#8 (`-----BEGIN PRIVATE KEY-----`) or SEC1 (`-----BEGIN EC PRIVATE KEY-----`) format.

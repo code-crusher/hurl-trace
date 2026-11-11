@@ -96,6 +96,10 @@ pub fn get_entry_options(
                 let value = eval_boolean_option(value, variables)?;
                 entry_options.digest = value;
             }
+            OptionKind::Dpop(value) => {
+                let value = eval_boolean_option(value, variables)?;
+                entry_options.dpop = value;
+            }
             OptionKind::Header(header) => {
                 let header = eval_header_option(header, variables)?;
                 entry_options.headers.push(header);
