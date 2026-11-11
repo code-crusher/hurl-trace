@@ -234,7 +234,8 @@ fn body_params(
         return (args, Some(request_spec.body.bytes().to_vec()));
     }
 
-    // See <https://curl.se/docs/manpage.html#-d> and <https://curl.se/docs/manpage.html#--data-binary>:
+    // See <https://curl.se/docs/manpage.html#-d>, <https://curl.se/docs/manpage.html#--data-raw>
+    // and <https://curl.se/docs/manpage.html#--data-binary>:
     //
     // > -d, --data <data>
     // > ...
@@ -245,15 +246,21 @@ fn body_params(
     // > out. If you do not want the @ character to have a special interpretation use
     // > --data-raw instead.
     // > ...
+    // > --data-raw <data>
+    // >
+    // > (HTTP) This posts data exactly as specified without any processing at all.
+    // > ...
     // > --data-binary <data>
     // >
     // > (HTTP) This posts data exactly as specified with no extra processing whatsoever.
     //
-    // In summary: if the payload is a file (@foo.bin), we must use --data-binary option in
-    // order to curl to not process the data sent.
+    // So, for a file body (@foo.bin), we must use --data-binary option in order to curl to not
+    // process the data sent. Otherwise, we use --data-raw, so that a body starting with a
+    // literal @ is not interpreted by curl as a file reference
+    // (<https://github.com/Orange-OpenSource/hurl/issues/5154>).
     let param = match request_spec.body {
         Body::File(_, _) => "--data-binary",
-        _ => "--data",
+        _ => "--data-raw",
     };
     args.push(Arg::plain(param));
     args.push(request_spec.body.curl_arg(context_dir));
@@ -1061,7 +1068,7 @@ mod tests {
             cmd.to_redacted_string(secrets),
             "curl \
             --header 'content-type: application/vnd.api+json' \
-            --data '{\"foo\":\"bar\"}' \
+            --data-raw '{\"foo\":\"bar\"}' \
             'http://localhost/json'"
         );
 
@@ -1079,8 +1086,42 @@ mod tests {
             "curl \
             --request PUT \
             --header 'content-type: application/vnd.api+json' \
-            --data '{\"foo\":\"bar\"}' \
+            --data-raw '{\"foo\":\"bar\"}' \
             'http://localhost/json'"
+        );
+    }
+
+    #[test]
+    fn post_text_body_starting_with_at_sign() {
+        let secrets: &[&str] = &[];
+        // <https://github.com/Orange-OpenSource/hurl/issues/5154>
+        // A body starting with a literal @ must be sent with --data-raw, otherwise curl
+        // interprets it as a file reference.
+        let request = RequestSpec {
+            method: Method("POST".to_string()),
+            url: Url::from_str("http://localhost:8000/anything").unwrap(),
+            body: Body::Text("@filename\n".to_string()),
+            ..Default::default()
+        };
+
+        let context_dir = ContextDir::default();
+        let cookie_store = CookieStore::new();
+        let options = ClientOptions::default();
+        let output = None;
+
+        let cmd = CurlCmd::new(
+            &request,
+            &cookie_store,
+            &context_dir,
+            output.as_ref(),
+            &options,
+        );
+        assert_eq!(
+            cmd.to_redacted_string(secrets),
+            "curl \
+            --header 'Content-Type:' \
+            --data-raw $'@filename\\n' \
+            'http://localhost:8000/anything'"
         );
     }
 
@@ -1180,7 +1221,7 @@ mod tests {
             cmd.to_redacted_string(secrets),
             "curl \
             --header 'Content-Type: application/octet-stream' \
-            --data $'\\x01\\x02\\x03' \
+            --data-raw $'\\x01\\x02\\x03' \
             'http://localhost:8000/post-bytes'"
         );
     }

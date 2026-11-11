@@ -1,0 +1,1 @@
+curl --header 'Content-Type:' --data-raw $'@filename\n' 'http://localhost:8000/post-at-sign'

@@ -1,5 +1,5 @@
 curl --header 'Accept: text/plain' --location 'http://localhost:8000/follow-redirect?foo=bar'
-curl --header 'Content-Type: text/plain' --header 'Accept: text/plain' --data 'Hello world!' --location 'http://localhost:8000/follow-redirect-from-post'
+curl --header 'Content-Type: text/plain' --header 'Accept: text/plain' --data-raw 'Hello world!' --location 'http://localhost:8000/follow-redirect-from-post'
 curl --header 'Accept: text/plain' --location 'http://localhost:8000/follow-redirect/relative/foo'
 curl --header 'Authorization: Basic Ym9iQGVtYWlsLmNvbTpzZWNyZXQ=' --header 'Cookie: fruit=lemon' --location 'http://localhost:8000/follow-redirect-basic-auth?change_host=true'
 # See <https://github.com/curl/curl/pull/21794> these tests are fixed for curl >= 8.21.0

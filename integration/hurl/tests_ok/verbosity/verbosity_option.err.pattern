@@ -26,7 +26,7 @@
 * X_POWERED_BY: Hurl
 *
 * Request can be run with the following curl command:
-* curl --header 'X_POWERED_BY: Hurl' --header 'Content-Type: application/json' --data '{"foo": "bar"}' 'http://localhost:8000/verbosity'
+* curl --header 'X_POWERED_BY: Hurl' --header 'Content-Type: application/json' --data-raw '{"foo": "bar"}' 'http://localhost:8000/verbosity'
 *
 > POST /verbosity HTTP/1.1
 > Host: localhost:8000
@@ -60,7 +60,7 @@
 * X_POWERED_BY: Hurl
 *
 * Request can be run with the following curl command:
-* curl --header 'X_POWERED_BY: Hurl' --header 'Content-Type: application/json' --data '{"foo": "bar"}' 'http://localhost:8000/verbosity'
+* curl --header 'X_POWERED_BY: Hurl' --header 'Content-Type: application/json' --data-raw '{"foo": "bar"}' 'http://localhost:8000/verbosity'
 *
 ** Found bundle for host: 0x6000028bc390 [serially]
 ** Can not multiplex, even if we wanted to

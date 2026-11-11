@@ -7,7 +7,7 @@
 * POST http://localhost:8000/content-type-json
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/json' --data $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-json'
+* curl --header 'Content-Type: application/json' --data-raw $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-json'
 *
 > POST /content-type-json HTTP/1.1
 > Host: localhost:8000
@@ -36,7 +36,7 @@
 * POST http://localhost:8000/content-type-json
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/json' --data $'{\n    "name": "Bob",\n    "age": 30\n}\n' 'http://localhost:8000/content-type-json'
+* curl --header 'Content-Type: application/json' --data-raw $'{\n    "name": "Bob",\n    "age": 30\n}\n' 'http://localhost:8000/content-type-json'
 *
 > POST /content-type-json HTTP/1.1
 > Host: localhost:8000
@@ -66,7 +66,7 @@
 * Content-Type: application/json
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/json' --data $'{\n    "name": "Bob",\n    "age": 30\n}\n' 'http://localhost:8000/content-type-json'
+* curl --header 'Content-Type: application/json' --data-raw $'{\n    "name": "Bob",\n    "age": 30\n}\n' 'http://localhost:8000/content-type-json'
 *
 > POST /content-type-json HTTP/1.1
 > Host: localhost:8000
@@ -95,7 +95,7 @@
 * POST http://localhost:8000/content-type-json
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/json' --data '{"query":"{\n  project(name: \"GraphQL\") {\n    tagline\n  }\n}"}' 'http://localhost:8000/content-type-json'
+* curl --header 'Content-Type: application/json' --data-raw '{"query":"{\n  project(name: \"GraphQL\") {\n    tagline\n  }\n}"}' 'http://localhost:8000/content-type-json'
 *
 > POST /content-type-json HTTP/1.1
 > Host: localhost:8000
@@ -125,7 +125,7 @@
 * Content-Type: application/json
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/json' --data $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-json'
+* curl --header 'Content-Type: application/json' --data-raw $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-json'
 *
 > POST /content-type-json HTTP/1.1
 > Host: localhost:8000
@@ -155,7 +155,7 @@
 * Content-Type: application/vnd.api+json
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/vnd.api+json' --data $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-vnd-json'
+* curl --header 'Content-Type: application/vnd.api+json' --data-raw $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-vnd-json'
 *
 > POST /content-type-vnd-json HTTP/1.1
 > Host: localhost:8000
@@ -185,7 +185,7 @@
 * content-type: application/vnd.api+json
 *
 * Request can be run with the following curl command:
-* curl --header 'content-type: application/vnd.api+json' --data $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-vnd-json'
+* curl --header 'content-type: application/vnd.api+json' --data-raw $'{\n    "name": "Bob",\n    "age": 30\n}' 'http://localhost:8000/content-type-vnd-json'
 *
 > POST /content-type-vnd-json HTTP/1.1
 > Host: localhost:8000
@@ -346,7 +346,7 @@
 * POST http://localhost:8000/content-type-xml
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/xml' --data $'<note>\n    <to>Tove</to>\n    <from>Jani</from>\n    <heading>Reminder</heading>\n    <body>Don\'t forget me this weekend!</body>\n</note>' 'http://localhost:8000/content-type-xml'
+* curl --header 'Content-Type: application/xml' --data-raw $'<note>\n    <to>Tove</to>\n    <from>Jani</from>\n    <heading>Reminder</heading>\n    <body>Don\'t forget me this weekend!</body>\n</note>' 'http://localhost:8000/content-type-xml'
 *
 > POST /content-type-xml HTTP/1.1
 > Host: localhost:8000
@@ -375,7 +375,7 @@
 * POST http://localhost:8000/content-type-xml
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/xml' --data $'<note>\n    <to>Tove</to>\n    <from>Jani</from>\n    <heading>Reminder</heading>\n    <body>Don\'t forget me this weekend!</body>\n</note>\n' 'http://localhost:8000/content-type-xml'
+* curl --header 'Content-Type: application/xml' --data-raw $'<note>\n    <to>Tove</to>\n    <from>Jani</from>\n    <heading>Reminder</heading>\n    <body>Don\'t forget me this weekend!</body>\n</note>\n' 'http://localhost:8000/content-type-xml'
 *
 > POST /content-type-xml HTTP/1.1
 > Host: localhost:8000
@@ -405,7 +405,7 @@
 * Content-Type: application/xml
 *
 * Request can be run with the following curl command:
-* curl --header 'Content-Type: application/xml' --data $'<note>\n    <to>Tove</to>\n    <from>Jani</from>\n    <heading>Reminder</heading>\n    <body>Don\'t forget me this weekend!</body>\n</note>\n' 'http://localhost:8000/content-type-xml'
+* curl --header 'Content-Type: application/xml' --data-raw $'<note>\n    <to>Tove</to>\n    <from>Jani</from>\n    <heading>Reminder</heading>\n    <body>Don\'t forget me this weekend!</body>\n</note>\n' 'http://localhost:8000/content-type-xml'
 *
 > POST /content-type-xml HTTP/1.1
 > Host: localhost:8000
