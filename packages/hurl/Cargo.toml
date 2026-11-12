@@ -17,8 +17,17 @@ name = "hurl"
 # Re-export of curl/static-ssl: use a bundled OpenSSL version and statically link to it. Only applies on platforms that
 # use OpenSSL
 static-openssl = ["curl/static-ssl", "curl-sys/static-ssl"]
+# OpenTelemetry support: send HTTP client traces to an OTLP/HTTP collector (see `--otel-http-endpoint`).
+otel = [
+    "dep:async-trait",
+    "dep:opentelemetry",
+    "dep:opentelemetry-http",
+    "dep:opentelemetry-otlp",
+    "dep:opentelemetry_sdk",
+]
 
 [dependencies]
+async-trait = { version = "0.1.92", optional = true }
 base64 = "0.23.1"
 brotli = "9.1.1"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
@@ -31,6 +40,15 @@ hurl_core = { version = "9.0.0", path = "../hurl_core" }
 libflate = "2.3.2"
 libxml = "0.3.23"
 md5 = "0.8.1"
+opentelemetry = { version = "0.33.1", optional = true, features = ["trace"] }
+opentelemetry-http = { version = "0.33.1", optional = true }
+opentelemetry-otlp = { version = "0.33.1", optional = true, default-features = false, features = [
+    "http-proto",
+    "trace",
+] }
+opentelemetry_sdk = { version = "0.33.1", optional = true, default-features = false, features = [
+    "trace",
+] }
 percent-encoding = "2.3.2"
 regex = "1.13.1"
 serde = { version = "1.0.229", features = ["derive"] }
