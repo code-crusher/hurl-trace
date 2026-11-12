@@ -24,6 +24,7 @@ Enhancements:
 * Add --proxy-header option to send header exclusively to a proxy [#3944](https://github.com/Orange-OpenSource/hurl/issues/3944)
 * Add --http2-prior-knowledge command line option to use HTTP/2 without HTTP/1.1 Upgrade [#5126](https://github.com/Orange-OpenSource/hurl/issues/5126)
 * Re-export Input struct from hurl_core to hurl [#5128](https://github.com/Orange-OpenSource/hurl/issues/5128)
+* Add include_hurl! macro to embed Hurl files in Rust code [#4818](https://github.com/Orange-OpenSource/hurl/issues/4818)
 * Add Sublime Text syntax highlighting [#5298](https://github.com/Orange-OpenSource/hurl/issues/5298)
 * Add --tls-max option [#3713](https://github.com/Orange-OpenSource/hurl/issues/3713)
 * Skip suggestion fo very long keyword [#5360](https://github.com/Orange-OpenSource/hurl/issues/5360)

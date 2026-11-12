@@ -37,12 +37,42 @@
 //!
 //! The main function of this crate is [`runner::run`].
 //!
+//! # Using Hurl files from Rust code
+//!
+//! Hurl requests can be kept in `.hurl` files, so that they are runnable with the `hurl` command
+//! line tool, and embedded in a Rust program at compile time with the [`include_hurl!`] macro:
+//!
+//! ```no_run
+//! use hurl::runner::{Input, RunnerOptionsBuilder, VariableSet};
+//! use hurl::util::logger::LoggerOptionsBuilder;
+//!
+//! // The Hurl file is embedded in the binary at compile time.
+//! let content = hurl::include_hurl!("../tests/hello.hurl");
+//! let filename = Input::new("tests/hello.hurl");
+//!
+//! let runner_options = RunnerOptionsBuilder::new().build();
+//! let logger_options = LoggerOptionsBuilder::new().color(false).build();
+//! let variables = VariableSet::new();
+//!
+//! let result = hurl::runner::run(
+//!     content,
+//!     Some(&filename),
+//!     &runner_options,
+//!     &variables,
+//!     &logger_options,
+//! );
+//! assert!(result.is_ok());
+//! ```
+//!
 //! This crate works on Windows, macOS and Linux.
 
 mod html;
 pub mod http;
 mod json;
 mod jsonpath;
+mod macros;
+#[doc(hidden)]
+pub use macros::strip_bom;
 pub mod output;
 #[doc(hidden)]
 pub mod parallel;
