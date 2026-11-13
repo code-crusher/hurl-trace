@@ -300,6 +300,15 @@ HTTP 200
 `Hello world!`
 ~~~
 
+Like oneline string body in request, escape sequences are processed: `\n` is a single newline char, `\t` is a tab,
+and `\\n` is a backslash followed by a `n`.
+
+~~~hurl
+GET https://example.org/helloworld
+HTTP 200
+`Hello\\nworld`
+~~~
+
 #### Base64 body
 
 Base64 response body assert starts with `base64,` and end with `;`. MIME's Base64 encoding is supported (newlines and

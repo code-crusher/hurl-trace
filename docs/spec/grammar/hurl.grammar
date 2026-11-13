@@ -487,9 +487,9 @@ oneline-string: "`" (oneline-string-content | placeholder)* "`"
 
 oneline-string-content: (oneline-string-text | oneline-string-escaped-char)*
 
-oneline-string-text: ~[#\n\\] ~"`"
+oneline-string-text: ~[\b\f\n\r\t\\] ~"`"
 
-oneline-string-escaped-char: "\\" ("`" | "#" | "\\" | "b" | "f" | "u" unicode-char )
+oneline-string-escaped-char: "\\" ("`" | "#" | "\\" | "\"" | "/" | "b" | "f" | "n" | "r" | "t" | "u" unicode-char )
 
 
 multiline-string:

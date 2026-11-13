@@ -237,4 +237,20 @@ mod tests {
         assert_eq!(bytes(&mut reader).unwrap(), Bytes::OnelineString(template));
         assert_eq!(reader.cursor().index.0, 5);
     }
+
+    #[test]
+    fn test_bytes_string_with_escapes() {
+        // `\n` is a newline char, `\\n` is a backslash followed by `n`.
+        let mut reader = Reader::new("`a\\nb\\\\nc`  ");
+        let template = Template::new(
+            Some('`'),
+            vec![TemplateElement::String {
+                value: "a\nb\\nc".to_string(),
+                source: "a\\nb\\\\nc".to_source(),
+            }],
+            SourceInfo::new(Pos::new(1, 1), Pos::new(1, 11)),
+        );
+        assert_eq!(bytes(&mut reader).unwrap(), Bytes::OnelineString(template));
+        assert_eq!(reader.cursor().index.0, 10);
+    }
 }

@@ -3636,6 +3636,19 @@ POST https://example.org/helloworld
 `Hello world!`
 ~~~
 
+Oneline string body supports escape sequences: `\n` is a single newline char, `\t` is a tab, `\u{2615}` is the
+Unicode literal ☕, and `\\` is a single backslash. So, to write a backslash followed by a `n` (and not a newline),
+you must escape the backslash: `\\n`.
+
+~~~hurl
+# The request body is the 8 chars aaa\nbbb
+POST https://example.org/helloworld
+`aaa\\nbbb`
+~~~
+
+Oneline string body can be [templatized with variables](#file-format-templates-templating-body). If you need a byte for byte fixed body, use a
+[file body](#file-format-request-file-body) instead.
+
 ##### Base64 body {#file-format-request-base64-body}
 
 Base64 body is used to set binary data as the request body.
@@ -4608,6 +4621,15 @@ For text based response body that do not contain newlines, one can use oneline s
 POST https://example.org/helloworld
 HTTP 200
 `Hello world!`
+~~~
+
+Like oneline string body in request, escape sequences are processed: `\n` is a single newline char, `\t` is a tab,
+and `\\n` is a backslash followed by a `n`.
+
+~~~hurl
+GET https://example.org/helloworld
+HTTP 200
+`Hello\\nworld`
 ~~~
 
 ##### Base64 body {#file-format-asserting-response-base64-body}
@@ -6389,8 +6411,8 @@ Short description:
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="value-string-escaped-char">value-string-escaped-char</span><span class="grammar-usedby">(used by <a href="#value-string-content">value-string-content</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">\</span>&nbsp;<span class="grammar-symbol">(</span><span class="grammar-literal">#</span><span class="grammar-symbol">|</span><span class="grammar-literal">\</span><span class="grammar-symbol">|</span><span class="grammar-literal">\b</span><span class="grammar-symbol">|</span><span class="grammar-literal">\f</span><span class="grammar-symbol">|</span><span class="grammar-literal">\n</span><span class="grammar-symbol">|</span><span class="grammar-literal">\r</span><span class="grammar-symbol">|</span><span class="grammar-literal">\t</span><span class="grammar-symbol">|</span><span class="grammar-literal">\u</span>&nbsp;<a href="#unicode-char">unicode-char</a><span class="grammar-symbol">)</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="oneline-string">oneline-string</span><span class="grammar-usedby">(used by <a href="#predicate-value">predicate-value</a>,&nbsp;<a href="#bytes">bytes</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">`</span>&nbsp;<span class="grammar-symbol">(</span><a href="#oneline-string-content">oneline-string-content</a><span class="grammar-symbol">|</span><a href="#placeholder">placeholder</a><span class="grammar-symbol">)</span><span class="grammar-symbol">*</span>&nbsp;<span class="grammar-literal">`</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="oneline-string-content">oneline-string-content</span><span class="grammar-usedby">(used by <a href="#oneline-string">oneline-string</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-symbol">(</span><a href="#oneline-string-text">oneline-string-text</a><span class="grammar-symbol">|</span><a href="#oneline-string-escaped-char">oneline-string-escaped-char</a><span class="grammar-symbol">)</span><span class="grammar-symbol">*</span></div></div>
-<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="oneline-string-text">oneline-string-text</span><span class="grammar-usedby">(used by <a href="#oneline-string-content">oneline-string-content</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-regex">~[#\n\\]</span>&nbsp;<span class="grammar-symbol">~</span><span class="grammar-literal">`</span></div></div>
-<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="oneline-string-escaped-char">oneline-string-escaped-char</span><span class="grammar-usedby">(used by <a href="#oneline-string-content">oneline-string-content</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">\</span>&nbsp;<span class="grammar-symbol">(</span><span class="grammar-literal">`</span><span class="grammar-symbol">|</span><span class="grammar-literal">#</span><span class="grammar-symbol">|</span><span class="grammar-literal">\</span><span class="grammar-symbol">|</span><span class="grammar-literal">b</span><span class="grammar-symbol">|</span><span class="grammar-literal">f</span><span class="grammar-symbol">|</span><span class="grammar-literal">u</span>&nbsp;<a href="#unicode-char">unicode-char</a><span class="grammar-symbol">)</span></div></div>
+<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="oneline-string-text">oneline-string-text</span><span class="grammar-usedby">(used by <a href="#oneline-string-content">oneline-string-content</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-regex">~[\b\f\n\r\t\\]</span>&nbsp;<span class="grammar-symbol">~</span><span class="grammar-literal">`</span></div></div>
+<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="oneline-string-escaped-char">oneline-string-escaped-char</span><span class="grammar-usedby">(used by <a href="#oneline-string-content">oneline-string-content</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">\</span>&nbsp;<span class="grammar-symbol">(</span><span class="grammar-literal">`</span><span class="grammar-symbol">|</span><span class="grammar-literal">#</span><span class="grammar-symbol">|</span><span class="grammar-literal">\</span><span class="grammar-symbol">|</span><span class="grammar-literal">"</span><span class="grammar-symbol">|</span><span class="grammar-literal">/</span><span class="grammar-symbol">|</span><span class="grammar-literal">b</span><span class="grammar-symbol">|</span><span class="grammar-literal">f</span><span class="grammar-symbol">|</span><span class="grammar-literal">n</span><span class="grammar-symbol">|</span><span class="grammar-literal">r</span><span class="grammar-symbol">|</span><span class="grammar-literal">t</span><span class="grammar-symbol">|</span><span class="grammar-literal">u</span>&nbsp;<a href="#unicode-char">unicode-char</a><span class="grammar-symbol">)</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="multiline-string">multiline-string</span><span class="grammar-usedby">(used by <a href="#predicate-value">predicate-value</a>,&nbsp;<a href="#bytes">bytes</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">```</span>&nbsp;<a href="#multiline-string-type">multiline-string-type</a><span class="grammar-symbol">?</span>&nbsp;<a href="#lt">lt</a><br>
 <span class="grammar-symbol">(</span><a href="#multiline-string-content">multiline-string-content</a><span class="grammar-symbol">|</span><a href="#placeholder">placeholder</a><span class="grammar-symbol">)</span><span class="grammar-symbol">*</span>&nbsp;<a href="#lt">lt</a><br>
 <span class="grammar-literal">```</span></div></div>

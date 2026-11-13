@@ -690,6 +690,19 @@ POST https://example.org/helloworld
 `Hello world!`
 ~~~
 
+Oneline string body supports escape sequences: `\n` is a single newline char, `\t` is a tab, `\u{2615}` is the
+Unicode literal ☕, and `\\` is a single backslash. So, to write a backslash followed by a `n` (and not a newline),
+you must escape the backslash: `\\n`.
+
+~~~hurl
+# The request body is the 8 chars aaa\nbbb
+POST https://example.org/helloworld
+`aaa\\nbbb`
+~~~
+
+Oneline string body can be [templatized with variables]. If you need a byte for byte fixed body, use a
+[file body] instead.
+
 #### Base64 body
 
 Base64 body is used to set binary data as the request body.
@@ -746,6 +759,7 @@ File are relative to the input Hurl file, and cannot contain implicit parent dir
 [HTML form]: https://developer.mozilla.org/en-US/docs/Learn/Forms
 [multiline string body]: #multiline-string-body
 [oneline string body]: #oneline-string-body
+[file body]: #file-body
 [body section]: #body
 [multipart/form-data on MDN]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST
 [`--file-root` option]: /docs/manual.md#file-root

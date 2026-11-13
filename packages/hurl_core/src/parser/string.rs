@@ -499,6 +499,54 @@ mod tests {
     }
 
     #[test]
+    fn test_backtick_template_with_escapes() {
+        // Escapes are processed: `\n` is a newline char.
+        let mut reader = Reader::new("`a\\nb`");
+        assert_eq!(
+            backtick_template(&mut reader).unwrap(),
+            Template::new(
+                Some('`'),
+                vec![TemplateElement::String {
+                    value: "a\nb".to_string(),
+                    source: "a\\nb".to_source()
+                }],
+                SourceInfo::new(Pos::new(1, 1), Pos::new(1, 7))
+            )
+        );
+        assert_eq!(reader.cursor().index, CharPos(6));
+
+        // An escaped backslash is a literal backslash: `\\n` is two chars `\` and `n`.
+        let mut reader = Reader::new("`a\\\\nb`");
+        assert_eq!(
+            backtick_template(&mut reader).unwrap(),
+            Template::new(
+                Some('`'),
+                vec![TemplateElement::String {
+                    value: "a\\nb".to_string(),
+                    source: "a\\\\nb".to_source()
+                }],
+                SourceInfo::new(Pos::new(1, 1), Pos::new(1, 8))
+            )
+        );
+        assert_eq!(reader.cursor().index, CharPos(7));
+
+        // Tab and Unicode literals are also processed.
+        let mut reader = Reader::new("`a\\tb\\u{2615}`");
+        assert_eq!(
+            backtick_template(&mut reader).unwrap(),
+            Template::new(
+                Some('`'),
+                vec![TemplateElement::String {
+                    value: "a\tb☕".to_string(),
+                    source: "a\\tb\\u{2615}".to_source()
+                }],
+                SourceInfo::new(Pos::new(1, 1), Pos::new(1, 15))
+            )
+        );
+        assert_eq!(reader.cursor().index, CharPos(14));
+    }
+
+    #[test]
     fn test_backtick_template_error_missing_closing_backtick() {
         let mut reader = Reader::new("`not found");
         let error = backtick_template(&mut reader).err().unwrap();
