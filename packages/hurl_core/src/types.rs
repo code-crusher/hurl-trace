@@ -24,6 +24,8 @@ use std::fmt::Formatter;
 use std::num::NonZero;
 use std::ops::AddAssign;
 use std::str::FromStr;
+use std::sync::LazyLock;
+use std::time::Duration;
 
 /// Represents a count operation, either finite or infinite.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -88,6 +90,40 @@ impl FromStr for DurationUnit {
             "h" => Ok(DurationUnit::Hour),
             x => Err(format!("Invalid duration unit {x}")),
         }
+    }
+}
+
+/// Parses a string with or without time unit into a [`Duration`].
+///
+/// When there is no time unit in the user string, the duration is parsed with a default time unit.
+///
+/// Example: `32s`, `10m`, `20000`.
+///
+pub fn duration_from_str(value: &str, default_unit: DurationUnit) -> Result<Duration, String> {
+    static DURATION_RE: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"^(\d+)([a-zA-Z]*)$").unwrap());
+    let Some(caps) = DURATION_RE.captures(value) else {
+        return Err("Invalid duration".to_string());
+    };
+    let source = caps.get(1).unwrap().as_str();
+    let value = source
+        .parse::<u64>()
+        .map_err(|_| "Duration value too large".to_string())?;
+    let unit = caps.get(2).unwrap().as_str();
+    let unit = if unit.is_empty() {
+        default_unit
+    } else {
+        DurationUnit::from_str(unit)?
+    };
+    let millis = match unit {
+        DurationUnit::MilliSecond => Some(value),
+        DurationUnit::Second => value.checked_mul(1000),
+        DurationUnit::Minute => value.checked_mul(1000 * 60),
+        DurationUnit::Hour => value.checked_mul(1000 * 60 * 60),
+    };
+    match millis {
+        Some(millis) => Ok(Duration::from_millis(millis)),
+        None => Err("Duration value too large".to_string()),
     }
 }
 
@@ -221,5 +257,62 @@ impl PartialEq<usize> for Index {
 impl PartialOrd<usize> for Index {
     fn partial_cmp(&self, other: &usize) -> Option<Ordering> {
         self.value.get().partial_cmp(other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_duration_from_str() {
+        assert_eq!(
+            duration_from_str("10", DurationUnit::MilliSecond).unwrap(),
+            Duration::from_millis(10)
+        );
+        assert_eq!(
+            duration_from_str("10s", DurationUnit::MilliSecond).unwrap(),
+            Duration::from_secs(10)
+        );
+        assert_eq!(
+            duration_from_str("10000ms", DurationUnit::Second).unwrap(),
+            Duration::from_millis(10000)
+        );
+        assert_eq!(
+            duration_from_str("5m", DurationUnit::Second).unwrap(),
+            Duration::from_secs(5 * 60)
+        );
+        assert_eq!(
+            duration_from_str("3h", DurationUnit::MilliSecond).unwrap(),
+            Duration::from_hours(3)
+        );
+    }
+
+    #[test]
+    fn test_duration_from_str_error() {
+        assert_eq!(
+            duration_from_str("", DurationUnit::MilliSecond).unwrap_err(),
+            "Invalid duration".to_string()
+        );
+        assert_eq!(
+            duration_from_str("s", DurationUnit::MilliSecond).unwrap_err(),
+            "Invalid duration".to_string()
+        );
+        assert_eq!(
+            duration_from_str("10s10", DurationUnit::MilliSecond).unwrap_err(),
+            "Invalid duration".to_string()
+        );
+        assert_eq!(
+            duration_from_str("10mm", DurationUnit::MilliSecond).unwrap_err(),
+            "Invalid duration unit mm".to_string()
+        );
+        assert_eq!(
+            duration_from_str("18446744073709551616", DurationUnit::MilliSecond).unwrap_err(),
+            "Duration value too large".to_string()
+        );
+        assert_eq!(
+            duration_from_str("18446744073709551615s", DurationUnit::MilliSecond).unwrap_err(),
+            "Duration value too large".to_string()
+        );
     }
 }

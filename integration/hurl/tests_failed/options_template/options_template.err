@@ -61,3 +61,12 @@ error: Invalid expression type
    |          ^^^^^ expecting integer, actual value is string <foo>
    |
 
+error: Invalid expression type
+  --> tests_failed/options_template/options_template.hurl:57:19
+   |
+   | GET http://localhost:8000/unused
+   | ...
+57 | retry-interval: {{interval}}
+   |                   ^^^^^^^^ expecting non-negative integer or duration string, actual value is string <foo>
+   |
+

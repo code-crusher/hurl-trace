@@ -49,3 +49,10 @@ GET http://localhost:8000/unused
 variable: count=foo
 retry: {{count}}
 HTTP 200
+
+
+GET http://localhost:8000/unused
+[Options]
+variable: interval=foo
+retry-interval: {{interval}}
+HTTP 200
