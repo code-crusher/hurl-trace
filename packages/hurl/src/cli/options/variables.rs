@@ -51,6 +51,72 @@ pub fn parse(s: &str, type_kind: TypeKind) -> Result<(String, Value), CliOptions
     }
 }
 
+/// Parses a `NAME=VALUE1,VALUE2,...` string as a job variable.
+///
+/// The values are separated by commas. A value that contains a comma can be double-quoted.
+/// An empty value list (eg `NAME=`) is an error, as is an empty value between commas
+/// (eg `NAME=a,,b`); use `""` to define an empty string value.
+///
+/// If `type_kind` is `TypeKind::Inferred`, each value variant is inferred from the `value`,
+/// for instance `true` is parsed as [`Value::Bool(true)`].
+/// If `type_kind` is `TypeKind::String`, each value is parsed as [`Value::String`]
+pub fn parse_job_variable(
+    s: &str,
+    type_kind: TypeKind,
+) -> Result<(String, Vec<Value>), CliOptionsError> {
+    match s.find('=') {
+        None => Err(CliOptionsError::Error(format!(
+            "Missing value for job variable {s}!"
+        ))),
+        Some(index) => {
+            let (name, value) = s.split_at(index);
+            if is_variable_reserved(name) {
+                return Err(CliOptionsError::Error(format!(
+                    "Variable {name} conflicts with the {name} function, use a different name."
+                )));
+            }
+            let raw_values = &value[1..];
+            if raw_values.trim().is_empty() {
+                return Err(CliOptionsError::Error(format!(
+                    "Missing value for job variable {name}!"
+                )));
+            }
+            let mut values = Vec::new();
+            for raw_value in split_values(raw_values) {
+                if raw_value.is_empty() {
+                    return Err(CliOptionsError::Error(format!(
+                        "Empty value in job variable {name}"
+                    )));
+                }
+                values.push(parse_value(&raw_value, type_kind)?);
+            }
+            Ok((name.to_string(), values))
+        }
+    }
+}
+
+/// Splits a comma-separated list of values, ignoring commas inside double quotes.
+fn split_values(s: &str) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
+    for c in s.chars() {
+        match c {
+            '"' => {
+                in_quotes = !in_quotes;
+                current.push(c);
+            }
+            ',' if !in_quotes => {
+                values.push(current.trim().to_string());
+                current.clear();
+            }
+            _ => current.push(c),
+        }
+    }
+    values.push(current.trim().to_string());
+    values
+}
+
 /// Parses a `value` as a pair of String and Value.
 ///
 /// If `inferred` is `true`, value variant is inferred from the `value`, for instance true is parsed as [`Value::Bool(true)`].
@@ -130,6 +196,97 @@ mod tests {
         assert_eq!(
             parse("name", TypeKind::Inferred).err().unwrap(),
             CliOptionsError::Error("Missing value for variable name!".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_job_variable() {
+        let (name, values) =
+            parse_job_variable("SUFFIX=red,green,blue", TypeKind::Inferred).unwrap();
+        assert_eq!(name, "SUFFIX");
+        assert_eq!(
+            values,
+            vec![
+                Value::String("red".to_string()),
+                Value::String("green".to_string()),
+                Value::String("blue".to_string()),
+            ]
+        );
+
+        // Values are typed with the inferred type.
+        let (_, values) = parse_job_variable("LIMIT=1,2,3", TypeKind::Inferred).unwrap();
+        assert_eq!(
+            values,
+            vec![
+                Value::Number(Number::Integer(1)),
+                Value::Number(Number::Integer(2)),
+                Value::Number(Number::Integer(3)),
+            ]
+        );
+
+        // A value can contain a comma when double-quoted.
+        let (_, values) =
+            parse_job_variable("HOST=\"a.com,b.com\",c.com", TypeKind::Inferred).unwrap();
+        assert_eq!(
+            values,
+            vec![
+                Value::String("a.com,b.com".to_string()),
+                Value::String("c.com".to_string()),
+            ]
+        );
+
+        // An explicit empty string can be used as a value.
+        let (_, values) = parse_job_variable("SUFFIX=\"\",x", TypeKind::Inferred).unwrap();
+        assert_eq!(
+            values,
+            vec![Value::String(String::new()), Value::String("x".to_string())]
+        );
+
+        // Surrounding spaces are trimmed.
+        let (_, values) = parse_job_variable("SUFFIX= red , green ", TypeKind::Inferred).unwrap();
+        assert_eq!(
+            values,
+            vec![
+                Value::String("red".to_string()),
+                Value::String("green".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse_job_variable_error() {
+        assert_eq!(
+            parse_job_variable("NAME", TypeKind::Inferred)
+                .err()
+                .unwrap(),
+            CliOptionsError::Error("Missing value for job variable NAME!".to_string())
+        );
+        assert_eq!(
+            parse_job_variable("NAME=", TypeKind::Inferred)
+                .err()
+                .unwrap(),
+            CliOptionsError::Error("Missing value for job variable NAME!".to_string())
+        );
+        assert_eq!(
+            parse_job_variable("NAME=a,,b", TypeKind::Inferred)
+                .err()
+                .unwrap(),
+            CliOptionsError::Error("Empty value in job variable NAME".to_string())
+        );
+        assert_eq!(
+            parse_job_variable("NAME=a,", TypeKind::Inferred)
+                .err()
+                .unwrap(),
+            CliOptionsError::Error("Empty value in job variable NAME".to_string())
+        );
+        assert_eq!(
+            parse_job_variable("newUuid=red,green", TypeKind::Inferred)
+                .err()
+                .unwrap(),
+            CliOptionsError::Error(
+                "Variable newUuid conflicts with the newUuid function, use a different name."
+                    .to_string()
+            )
         );
     }
 

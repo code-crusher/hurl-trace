@@ -114,25 +114,41 @@ Output options:
                                debug]
 
 Run options:
-      --continue-on-error              Continue executing requests even if an error occurs
-      --delay <MILLISECONDS>           Sets delay before each request (aka sleep) [default: 0]
-      --from-entry <ENTRY_NUMBER>      Execute Hurl file from ENTRY_NUMBER (starting at 1)
-      --jobs <NUM>                     Maximum number of parallel jobs, 1 to disable parallel
-                                       execution
-      --no-assert                      Ignore asserts defined in the Hurl file
-      --no-jsonpath-coercion           Disable JSONPath result coercion
-      --parallel                       Run files in parallel (default in test mode)
-      --repeat <NUM>                   Repeat the input files sequence NUM times, -1 for infinite
-                                       loop
-      --retry <NUM>                    Maximum number of retries, 0 for no retries, -1 for unlimited
-                                       retries
-      --retry-interval <MILLISECONDS>  Interval in milliseconds before a retry [default: 1000]
-      --secret <NAME=VALUE>            Define a variable which value is secret
-      --secrets-file <FILE>            Define a secrets file in which you define your secrets
-      --test                           Activate test mode (use parallel execution)
-      --to-entry <ENTRY_NUMBER>        Execute Hurl file to ENTRY_NUMBER (starting at 1)
-      --variable <NAME=VALUE>          Define a variable
-      --variables-file <FILE>          Define a properties file in which you define your variables
+      --continue-on-error
+          Continue executing requests even if an error occurs
+      --delay <MILLISECONDS>
+          Sets delay before each request (aka sleep) [default: 0]
+      --from-entry <ENTRY_NUMBER>
+          Execute Hurl file from ENTRY_NUMBER (starting at 1)
+      --job-variable <NAME=VALUE,VALUE...>
+          Define a variable for parallel jobs, with one value per job (the values are recycled when
+          there are more jobs than values)
+      --jobs <NUM>
+          Maximum number of parallel jobs, 1 to disable parallel execution
+      --no-assert
+          Ignore asserts defined in the Hurl file
+      --no-jsonpath-coercion
+          Disable JSONPath result coercion
+      --parallel
+          Run files in parallel (default in test mode)
+      --repeat <NUM>
+          Repeat the input files sequence NUM times, -1 for infinite loop
+      --retry <NUM>
+          Maximum number of retries, 0 for no retries, -1 for unlimited retries
+      --retry-interval <MILLISECONDS>
+          Interval in milliseconds before a retry [default: 1000]
+      --secret <NAME=VALUE>
+          Define a variable which value is secret
+      --secrets-file <FILE>
+          Define a secrets file in which you define your secrets
+      --test
+          Activate test mode (use parallel execution)
+      --to-entry <ENTRY_NUMBER>
+          Execute Hurl file to ENTRY_NUMBER (starting at 1)
+      --variable <NAME=VALUE>
+          Define a variable
+      --variables-file <FILE>
+          Define a properties file in which you define your variables
 
 Report options:
       --report-html <DIR>    Generate HTML report to DIR

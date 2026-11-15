@@ -20,6 +20,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::time::Duration;
 
+use hurl::parallel::job::JobVariable;
 use hurl::pretty::PrettyMode;
 use hurl::runner::Value;
 use hurl_core::types::{BytesPerSec, Count, DurationUnit};
@@ -54,6 +55,7 @@ const HURL_LOCATION_TRUSTED: &str = "HURL_LOCATION_TRUSTED";
 const HURL_INSECURE: &str = "HURL_INSECURE";
 const HURL_IPV4: &str = "HURL_IPV4";
 const HURL_IPV6: &str = "HURL_IPV6";
+const HURL_JOB_VARIABLE_PREFIX: &str = "HURL_JOB_VARIABLE_";
 const HURL_JOBS: &str = "HURL_JOBS";
 const HURL_HEADER: &str = "HURL_HEADER";
 const HURL_HTTP10: &str = "HURL_HTTP10";
@@ -208,6 +210,23 @@ impl EnvVars {
     pub fn is_ci(&self) -> bool {
         // Code borrowed from <https://github.com/rust-lang/cargo/blob/master/crates/cargo-util/src/lib.rs>
         self.all_env_vars.contains_key("CI") || self.all_env_vars.contains_key("TF_BUILD")
+    }
+
+    /// Returns the env vars for job variables.
+    ///
+    /// Environment variables starting with `HURL_JOB_VARIABLE_` define a job variable whose name is
+    /// the rest of the env var name (uppercase). The values are a comma-separated list of values,
+    /// mirroring the `--job-variable` option. For instance `HURL_JOB_VARIABLE_SUFFIX=red,green,blue`
+    /// is equivalent to `--job-variable SUFFIX=red,green,blue`.
+    pub fn job_variables(&self) -> HashMap<&str, &str> {
+        self.hurl_env_vars
+            .iter()
+            .filter_map(|(name, value)| {
+                name.strip_prefix(HURL_JOB_VARIABLE_PREFIX)
+                    .filter(|n| !n.is_empty())
+                    .map(|stripped| (stripped, value.as_str()))
+            })
+            .collect()
     }
 
     /// Returns the env var for maximum number of parallel jobs.
@@ -563,6 +582,39 @@ fn jobs(
     }
 }
 
+/// Parses Hurl job variables configured in environment variables, given a set of existing job
+/// variables `default_job_variables`.
+///
+/// Job variables can be set with `HURL_JOB_VARIABLE_SUFFIX=red,green,blue`, the variable name is
+/// the environment variable name stripped of the `HURL_JOB_VARIABLE_` prefix.
+fn job_variables(
+    env_vars: &EnvVars,
+    default_job_variables: Vec<JobVariable>,
+) -> Result<Vec<JobVariable>, CliOptionsError> {
+    let mut job_variables = default_job_variables;
+
+    // Job variables are typed, based on their values.
+    let type_kind = TypeKind::Inferred;
+
+    // Environment variable names are not sorted, so collect and sort them to get a deterministic
+    // order.
+    let mut env_job_variables = env_vars.job_variables().into_iter().collect::<Vec<_>>();
+    env_job_variables.sort_by(|a, b| a.0.cmp(b.0));
+
+    for (env_name, env_value) in env_job_variables {
+        let (name, values) =
+            variables::parse_job_variable(&format!("{env_name}={env_value}"), type_kind).map_err(
+                |e| {
+                    CliOptionsError::Error(format!(
+                        "Invalid value for environment variable HURL_JOB_VARIABLE_{env_name}: {e}"
+                    ))
+                },
+            )?;
+        job_variables.push(JobVariable::new(&name, values));
+    }
+    Ok(job_variables)
+}
+
 fn limit_rate(
     env_vars: &EnvVars,
     default_value: Option<BytesPerSec>,
@@ -816,6 +868,7 @@ pub fn parse_env_vars(
         follow_location_trusted(env_vars, default_options.follow_location_trusted);
     let insecure = insecure(env_vars, default_options.insecure);
     let jobs = jobs(env_vars, default_options.jobs)?;
+    let job_variables = job_variables(env_vars, default_options.job_variables)?;
     let limit_rate = limit_rate(env_vars, default_options.limit_rate)?;
     let max_filesize = max_filesize(env_vars, default_options.max_filesize)?;
     let max_redirect = max_redirect(env_vars, default_options.max_redirect)?;
@@ -851,6 +904,7 @@ pub fn parse_env_vars(
         insecure,
         ip_resolve,
         jobs,
+        job_variables,
         limit_rate,
         max_filesize,
         max_redirect,
@@ -942,6 +996,7 @@ fn err_from_cli_err(error: CliOptionsError, env: &'static str) -> CliOptionsErro
 #[cfg(test)]
 mod tests {
     use super::{CliOptions, EnvVars, parse_env_vars};
+    use hurl::parallel::job::JobVariable;
     use hurl::runner::{Number, Value};
     use std::collections::HashMap;
 
@@ -1076,6 +1131,88 @@ mod tests {
             updated_options.variables["bar"],
             Value::String("BAR".to_string())
         );
+    }
+
+    #[test]
+    fn test_options_job_variables_override_by_env_vars() {
+        // Default configuration of Hurl run.
+        let mut options = CliOptions::default();
+        options.job_variables.push(JobVariable::new(
+            "SUFFIX",
+            vec![Value::String("default".to_string())],
+        ));
+
+        // `HURL_JOB_VARIABLE_*` are added to the job variables.
+        let env_vars_override = HashMap::from([
+            ("HURL_JOB_VARIABLE_NAME".to_string(), "a,b,c".to_string()),
+            (
+                "HURL_JOB_VARIABLE_SUFFIX".to_string(),
+                "red,green".to_string(),
+            ),
+            (
+                "HURL_VARIABLE_not_a_job_variable".to_string(),
+                "xxx".to_string(),
+            ),
+            ("HURL_JOB_VARIABLE_".to_string(), "ignored".to_string()),
+        ]);
+        let env_vars = EnvVars::new(env_vars_override);
+        let updated_options = parse_env_vars(&env_vars, options).unwrap();
+        assert_eq!(updated_options.job_variables.len(), 3);
+        // Env vars are processed in sorted order, after the default job variables.
+        assert_eq!(
+            updated_options.job_variables[0],
+            JobVariable::new("SUFFIX", vec![Value::String("default".to_string())],)
+        );
+        assert_eq!(
+            updated_options.job_variables[1],
+            JobVariable::new(
+                "NAME",
+                vec![
+                    Value::String("a".to_string()),
+                    Value::String("b".to_string()),
+                    Value::String("c".to_string()),
+                ],
+            )
+        );
+        assert_eq!(
+            updated_options.job_variables[2],
+            JobVariable::new(
+                "SUFFIX",
+                vec![
+                    Value::String("red".to_string()),
+                    Value::String("green".to_string()),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn test_options_job_variables_from_env_vars_typed() {
+        let env_vars = EnvVars::new(HashMap::from([(
+            "HURL_JOB_VARIABLE_LIMIT".to_string(),
+            "1,2,3".to_string(),
+        )]));
+        let options = CliOptions::default();
+        let updated_options = parse_env_vars(&env_vars, options).unwrap();
+        assert_eq!(
+            updated_options.job_variables[0].values,
+            vec![
+                Value::Number(Number::Integer(1)),
+                Value::Number(Number::Integer(2)),
+                Value::Number(Number::Integer(3)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_options_job_variables_invalid_env_var() {
+        let env_vars = EnvVars::new(HashMap::from([(
+            "HURL_JOB_VARIABLE_EMPTY".to_string(),
+            "a,,b".to_string(),
+        )]));
+        let options = CliOptions::default();
+        let result = parse_env_vars(&env_vars, options);
+        assert!(result.is_err());
     }
 
     #[test]

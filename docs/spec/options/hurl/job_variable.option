@@ -1,0 +1,20 @@
+name: job_variable
+long: job-variable
+value: NAME=VALUE,VALUE...
+help: Define a variable for parallel jobs, with one value per job (the values are recycled when there are more jobs than values)
+help_heading: Run options
+multi: append
+config_file: true
+env_var: HURL_JOB_VARIABLE_name
+---
+Define a variable for parallel jobs. The value is a comma-separated list of values, and each job in a parallel run gets one of the values, picked in order. When there are more jobs than values, the values are recycled from the beginning.
+
+This is useful when running a Hurl file over several resources that require mutually exclusive access (like a locked resource): each job can target a different resource by using the same variable.
+
+```shell
+$ hurl --parallel --job-variable SUFFIX=red,green,blue a.hurl a.hurl a.hurl
+```
+
+In this example, the first job gets `SUFFIX=red`, the second `SUFFIX=green` and the third `SUFFIX=blue`. The job variable is injected in addition to the variables defined with [`--variable`](#variable).
+
+Values containing a comma can be double-quoted: `--job-variable SUFFIX="a,b",c`.

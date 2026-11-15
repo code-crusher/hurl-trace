@@ -36,6 +36,7 @@ use super::variables_file::VariablesFile;
 use super::{BoolOpt, CliOptions, TlsVersion, commands, duration, get_version, secret};
 use super::{CliOptionsError, ErrorFormat, HttpVersion, IpResolve, Output, variables};
 use super::{OutputType, Verbosity};
+use hurl::parallel::job::JobVariable;
 
 /// Parses the command line arguments given a `context` and default options values.
 ///
@@ -120,6 +121,7 @@ where
         .arg(commands::continue_on_error())
         .arg(commands::delay())
         .arg(commands::from_entry())
+        .arg(commands::job_variable())
         .arg(commands::jobs())
         .arg(commands::no_assert())
         .arg(commands::no_jsonpath_coercion())
@@ -220,6 +222,7 @@ fn parse_arg_matches(
     let input_files = input_files(arg_matches, context)?;
     let insecure = insecure(arg_matches, default_options.insecure);
     let ip_resolve = ip_resolve(arg_matches, default_options.ip_resolve);
+    let job_variables = job_variables(arg_matches, default_options.job_variables)?;
     let jobs = jobs(arg_matches, default_options.jobs);
     let json_report_dir = json_report_dir(arg_matches, default_options.json_report_dir)?;
     let junit_file = junit_file(arg_matches, default_options.junit_file);
@@ -332,6 +335,7 @@ fn parse_arg_matches(
         variables,
         verbosity,
         jobs,
+        job_variables,
     })
 }
 
@@ -670,6 +674,27 @@ fn jobs(arg_matches: &ArgMatches, default_value: Option<usize>) -> Option<usize>
     get::<u32>(arg_matches, "jobs")
         .map(|m| m as usize)
         .or(default_value)
+}
+
+/// Returns the list of job variables from the command line options `matches`.
+///
+/// Job variables are given as `NAME=VALUE1,VALUE2,...` and define a variable whose value is
+/// picked for each parallel job from the given list of values, cycling through the values when
+/// there are more jobs than values.
+fn job_variables(
+    arg_matches: &ArgMatches,
+    default_value: Vec<JobVariable>,
+) -> Result<Vec<JobVariable>, CliOptionsError> {
+    let mut job_variables = default_value;
+    if let Some(inputs) = get_strings(arg_matches, "job_variable") {
+        // Job variables are typed, based on their values.
+        let type_kind = TypeKind::Inferred;
+        for input in inputs {
+            let (name, values) = variables::parse_job_variable(&input, type_kind)?;
+            job_variables.push(JobVariable::new(&name, values));
+        }
+    }
+    Ok(job_variables)
 }
 
 fn json_report_dir(

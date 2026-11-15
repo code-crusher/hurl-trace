@@ -19,7 +19,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex, mpsc};
 
 use super::error::JobError;
-use super::job::{Job, JobQueue, JobResult};
+use super::job::{Job, JobQueue, JobResult, JobVariable};
 use super::message::WorkerMessage;
 use super::progress::{Mode, ParProgress};
 use super::worker::{Worker, WorkerId};
@@ -55,6 +55,8 @@ pub struct ParallelRunner {
     output_type: OutputType,
     /// Repeat mode for the runner: infinite or finite.
     repeat: Count,
+    /// Job variables to inject in each job, with their values cycling per job.
+    job_variables: Vec<JobVariable>,
 }
 
 /// Represents a worker's state.
@@ -110,6 +112,11 @@ impl ParallelRunner {
     /// new lines at width `max_width`.
     ///
     /// `color` determines if color if used in standard error.
+    ///
+    /// The `job_variables` are injected in each job: for a given job, each variable gets a value
+    /// picked from its values, based on the job sequence number (the values are recycled when the
+    /// sequence number is greater than the number of values).
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         workers_count: usize,
         output_type: OutputType,
@@ -118,6 +125,7 @@ impl ParallelRunner {
         progress_bar: bool,
         color_stderr: bool,
         max_width: Option<usize>,
+        job_variables: Vec<JobVariable>,
     ) -> Self {
         // Worker are running on theirs own thread, while parallel runner is running in the main
         // thread.
@@ -146,6 +154,7 @@ impl ParallelRunner {
             progress,
             output_type,
             repeat,
+            job_variables,
         }
     }
 
@@ -162,7 +171,7 @@ impl ParallelRunner {
         let mut stderr = Stderr::new(WriteMode::Immediate);
 
         // Create the jobs queue:
-        let mut queue = JobQueue::new(jobs, self.repeat);
+        let mut queue = JobQueue::with_job_variables(jobs, self.repeat, self.job_variables.clone());
         let jobs_count = queue.jobs_count();
 
         // Initiate the runner, fill our workers:

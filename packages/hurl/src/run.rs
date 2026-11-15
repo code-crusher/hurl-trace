@@ -214,6 +214,7 @@ pub fn run_par(
         options.progress_bar.get(),
         options.color_stderr.get(),
         max_width,
+        options.job_variables.clone(),
     );
     let results = runner.run(&jobs)?;
     let results = results.into_iter().map(HurlRun::from).collect();

@@ -51,6 +51,7 @@ Register-ArgumentCompleter -Native -CommandName 'hurl' -ScriptBlock {
             [CompletionResult]::new('--insecure', 'insecure', [CompletionResultType]::ParameterName, 'Allow insecure SSL connections')
             [CompletionResult]::new('--ipv4', 'ipv4', [CompletionResultType]::ParameterName, 'Tell Hurl to use IPv4 addresses only when resolving host names, and not for example try IPv6')
             [CompletionResult]::new('--ipv6', 'ipv6', [CompletionResultType]::ParameterName, 'Tell Hurl to use IPv6 addresses only when resolving host names, and not for example try IPv4')
+            [CompletionResult]::new('--job-variable', 'job-variable', [CompletionResultType]::ParameterName, 'Define a variable for parallel jobs, with one value per job (the values are recycled when there are more jobs than values)')
             [CompletionResult]::new('--jobs', 'jobs', [CompletionResultType]::ParameterName, 'Maximum number of parallel jobs, 1 to disable parallel execution')
             [CompletionResult]::new('--json', 'json', [CompletionResultType]::ParameterName, 'Output each Hurl file result to JSON')
             [CompletionResult]::new('--limit-rate', 'limit-rate', [CompletionResultType]::ParameterName, 'Specify the maximum transfer rate in bytes/second, for both downloads and uploads')

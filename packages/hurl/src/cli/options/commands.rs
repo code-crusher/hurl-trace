@@ -305,6 +305,16 @@ pub fn ipv6() -> clap::Arg {
         .action(clap::ArgAction::SetTrue)
 }
 
+pub fn job_variable() -> clap::Arg {
+    clap::Arg::new("job_variable")
+        .long("job-variable")
+        .value_name("NAME=VALUE,VALUE...")
+        .help("Define a variable for parallel jobs, with one value per job (the values are recycled when there are more jobs than values)")
+        .help_heading("Run options")
+        .num_args(1)
+        .action(clap::ArgAction::Append)
+}
+
 pub fn jobs() -> clap::Arg {
     clap::Arg::new("jobs")
         .long("jobs")

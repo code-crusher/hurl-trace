@@ -572,6 +572,22 @@ Execute Hurl file from ENTRY_NUMBER (starting at 1).
 
 This is a cli-only option.
 
+#### --job-variable <NAME=VALUE,VALUE...> {#job-variable}
+
+Define a variable for parallel jobs. The value is a comma-separated list of values, and each job in a parallel run gets one of the values, picked in order. When there are more jobs than values, the values are recycled from the beginning.
+
+This is useful when running a Hurl file over several resources that require mutually exclusive access (like a locked resource): each job can target a different resource by using the same variable.
+
+```shell
+$ hurl --parallel --job-variable SUFFIX=red,green,blue a.hurl a.hurl a.hurl
+```
+
+In this example, the first job gets `SUFFIX=red`, the second `SUFFIX=green` and the third `SUFFIX=blue`. The job variable is injected in addition to the variables defined with [`--variable`](#variable).
+
+Values containing a comma can be double-quoted: `--job-variable SUFFIX="a,b",c`.
+
+Environment variables: HURL_JOB_VARIABLE_name
+
 #### --jobs <NUM> {#jobs}
 
 Maximum number of parallel jobs in parallel mode. Default value corresponds (in most cases) to the current amount of CPUs. Set to 1 to disable parallel execution of files.

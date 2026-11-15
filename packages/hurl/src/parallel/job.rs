@@ -18,8 +18,31 @@
 use hurl_core::input::Input;
 use hurl_core::types::Count;
 
-use crate::runner::{HurlResult, RunnerOptions, VariableSet};
+use crate::runner::{HurlResult, RunnerOptions, Value, VariableSet};
 use crate::util::logger::LoggerOptions;
+
+/// A variable to inject in the jobs, in parallel mode.
+///
+/// A job variable is a variable that is assigned a different value for each job, picked from a
+/// list of values. When a job's sequence number is beyond the number of provided values, the
+/// values are recycled from the beginning.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct JobVariable {
+    /// Name of the variable.
+    pub name: String,
+    /// The values to cycle through, one for each job.
+    pub values: Vec<Value>,
+}
+
+impl JobVariable {
+    /// Creates a new job variable named `name` with the given `values`.
+    pub fn new(name: &str, values: Vec<Value>) -> Self {
+        JobVariable {
+            name: name.to_string(),
+            values,
+        }
+    }
+}
 
 /// Represents the job to run. A job instance groups the input data to execute, and has no methods
 /// associated to it.
@@ -81,6 +104,11 @@ impl JobResult {
 /// The job queue implements [`Iterator`] trait, and can return a new job to use each time its
 /// `next` method is called. This queue can repeat its input sequence a certain number of times, or
 /// can loop forever.
+///
+/// The queue can be created with a list of [`JobVariable`]. Each emitted job gets a copy of the input jobs
+/// with the job variables injected, the value of a job variable for a given job is picked from the
+/// job variable values, using the job sequence number to cycle through the values (the value at
+/// index `seq % values.len()` is used).
 pub struct JobQueue<'job> {
     /// The input jobs list.
     jobs: &'job [Job],
@@ -90,16 +118,31 @@ pub struct JobQueue<'job> {
     repeat: Count,
     /// Current index of the repeat.
     repeat_index: usize,
+    /// The job variables to inject in each job, one value per job.
+    job_variables: Vec<JobVariable>,
 }
 
 impl<'job> JobQueue<'job> {
     /// Create a new queue, with a list of `jobs` and a `repeat` mode.
     pub fn new(jobs: &'job [Job], repeat: Count) -> Self {
+        JobQueue::with_job_variables(jobs, repeat, Vec::new())
+    }
+
+    /// Create a new queue, with a list of `jobs`, a `repeat` mode and a list of `job_variables`.
+    ///
+    /// Job variables are injected in each job, cycling through the values based on the job
+    /// sequence number.
+    pub fn with_job_variables(
+        jobs: &'job [Job],
+        repeat: Count,
+        job_variables: Vec<JobVariable>,
+    ) -> Self {
         JobQueue {
             jobs,
             index: 0,
             repeat,
             repeat_index: 0,
+            job_variables,
         }
     }
 
@@ -117,6 +160,16 @@ impl<'job> JobQueue<'job> {
         // When we're repeating a sequence, we clone an original job and give it a proper
         // sequence number relative to the current `repeat_index`.
         job.seq = self.jobs[index].seq + (self.jobs.len() * self.repeat_index);
+        // Inject the job variables, picking the value at the index given by the job sequence
+        // number. The values wrap around when the sequence number is greater than the number
+        // of values.
+        for job_variable in &self.job_variables {
+            if job_variable.values.is_empty() {
+                continue;
+            }
+            let value = job_variable.values[job.seq % job_variable.values.len()].clone();
+            job.variables.insert(job_variable.name.clone(), value);
+        }
         job
     }
 }
@@ -153,8 +206,8 @@ mod tests {
     use hurl_core::input::Input;
     use hurl_core::types::Count;
 
-    use crate::parallel::job::{Job, JobQueue};
-    use crate::runner::{RunnerOptionsBuilder, VariableSet};
+    use crate::parallel::job::{Job, JobQueue, JobVariable};
+    use crate::runner::{RunnerOptionsBuilder, Value, VariableSet};
     use crate::util::logger::LoggerOptionsBuilder;
 
     fn new_job(file: &str, index: usize) -> Job {
@@ -204,5 +257,186 @@ mod tests {
         // etc...
 
         assert_eq!(queue.jobs_count(), Count::Infinite);
+    }
+
+    #[test]
+    fn job_queue_injects_job_variables() {
+        let jobs = [
+            new_job("a.hurl", 0),
+            new_job("b.hurl", 1),
+            new_job("c.hurl", 2),
+        ];
+        let job_variables = vec![JobVariable::new(
+            "SUFFIX",
+            vec![
+                Value::String("red".to_string()),
+                Value::String("green".to_string()),
+            ],
+        )];
+
+        let mut queue = JobQueue::with_job_variables(&jobs, Count::Finite(1), job_variables);
+
+        let job = queue.next().unwrap();
+        assert_eq!(
+            job.variables.get("SUFFIX").map(|v| v.value()),
+            Some(&Value::String("red".to_string()))
+        );
+        let job = queue.next().unwrap();
+        assert_eq!(
+            job.variables.get("SUFFIX").map(|v| v.value()),
+            Some(&Value::String("green".to_string()))
+        );
+        // Values are recycled when there are more jobs than values.
+        let job = queue.next().unwrap();
+        assert_eq!(
+            job.variables.get("SUFFIX").map(|v| v.value()),
+            Some(&Value::String("red".to_string()))
+        );
+        assert_eq!(queue.next(), None);
+    }
+
+    #[test]
+    fn job_queue_job_variables_with_repeat() {
+        let jobs = [new_job("a.hurl", 0), new_job("b.hurl", 1)];
+        let job_variables = vec![JobVariable::new(
+            "SUFFIX",
+            vec![
+                Value::String("red".to_string()),
+                Value::String("green".to_string()),
+                Value::String("blue".to_string()),
+            ],
+        )];
+
+        let mut queue = JobQueue::with_job_variables(&jobs, Count::Finite(2), job_variables);
+
+        let suffixes: Vec<String> = (0..4)
+            .map(|_| {
+                let job = queue.next().unwrap();
+                match job.variables.get("SUFFIX").map(|v| v.value()) {
+                    Some(Value::String(s)) => s.clone(),
+                    other => panic!("unexpected value {other:?}"),
+                }
+            })
+            .collect();
+        // Values cycle based on the job sequence number, independently of the repeat round.
+        assert_eq!(suffixes, vec!["red", "green", "blue", "red"]);
+        assert_eq!(queue.next(), None);
+    }
+
+    #[test]
+    fn job_queue_job_variables_keep_base_variables() {
+        let mut variables = VariableSet::new();
+        variables.insert("base".to_string(), Value::String("base".to_string()));
+        let runner_options = RunnerOptionsBuilder::default().build();
+        let logger_options = LoggerOptionsBuilder::default().build();
+        let job = Job::new(
+            &Input::new("a.hurl"),
+            0,
+            &runner_options,
+            &variables,
+            &logger_options,
+        );
+
+        let job_variables = vec![JobVariable::new(
+            "SUFFIX",
+            vec![Value::String("red".to_string())],
+        )];
+        let jobs = [job];
+        let mut queue = JobQueue::with_job_variables(&jobs, Count::Finite(1), job_variables);
+
+        let job = queue.next().unwrap();
+        assert_eq!(
+            job.variables.get("base").map(|v| v.value()),
+            Some(&Value::String("base".to_string()))
+        );
+        assert_eq!(
+            job.variables.get("SUFFIX").map(|v| v.value()),
+            Some(&Value::String("red".to_string()))
+        );
+    }
+
+    #[test]
+    fn job_queue_job_variables_override_base_variables() {
+        let mut variables = VariableSet::new();
+        variables.insert("SUFFIX".to_string(), Value::String("base".to_string()));
+        let runner_options = RunnerOptionsBuilder::default().build();
+        let logger_options = LoggerOptionsBuilder::default().build();
+        let job = Job::new(
+            &Input::new("a.hurl"),
+            0,
+            &runner_options,
+            &variables,
+            &logger_options,
+        );
+
+        let job_variables = vec![JobVariable::new(
+            "SUFFIX",
+            vec![Value::String("red".to_string())],
+        )];
+        let jobs = [job];
+        let mut queue = JobQueue::with_job_variables(&jobs, Count::Finite(1), job_variables);
+
+        let job = queue.next().unwrap();
+        // A job variable shadows a base variable of the same name.
+        assert_eq!(
+            job.variables.get("SUFFIX").map(|v| v.value()),
+            Some(&Value::String("red".to_string()))
+        );
+    }
+
+    #[test]
+    fn job_queue_empty_job_variable_values_are_skipped() {
+        let jobs = [new_job("a.hurl", 0)];
+        let job_variables = vec![JobVariable::new("SUFFIX", vec![])];
+
+        let mut queue = JobQueue::with_job_variables(&jobs, Count::Finite(1), job_variables);
+
+        let job = queue.next().unwrap();
+        assert!(job.variables.get("SUFFIX").is_none());
+    }
+
+    #[test]
+    fn job_queue_multiple_job_variables() {
+        let jobs = [new_job("a.hurl", 0), new_job("b.hurl", 1)];
+        let job_variables = vec![
+            JobVariable::new(
+                "NAME",
+                vec![
+                    Value::String("a".to_string()),
+                    Value::String("b".to_string()),
+                    Value::String("c".to_string()),
+                ],
+            ),
+            JobVariable::new(
+                "COLOR",
+                vec![
+                    Value::String("red".to_string()),
+                    Value::String("green".to_string()),
+                ],
+            ),
+        ];
+
+        let mut queue = JobQueue::with_job_variables(&jobs, Count::Finite(3), job_variables);
+
+        let expected = [
+            ("a", "red"),
+            ("b", "green"),
+            ("c", "red"),
+            ("a", "green"),
+            ("b", "red"),
+            ("c", "green"),
+        ];
+        for (expected_name, expected_color) in expected {
+            let job = queue.next().unwrap();
+            assert_eq!(
+                job.variables.get("NAME").map(|v| v.value()),
+                Some(&Value::String(expected_name.to_string()))
+            );
+            assert_eq!(
+                job.variables.get("COLOR").map(|v| v.value()),
+                Some(&Value::String(expected_color.to_string()))
+            );
+        }
+        assert_eq!(queue.next(), None);
     }
 }

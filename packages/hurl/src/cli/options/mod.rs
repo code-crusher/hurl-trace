@@ -47,6 +47,7 @@ pub use crate::cli::options::context::RunContext;
 pub use crate::cli::options::env_vars::EnvVars;
 use crate::runner::{RunnerOptions, RunnerOptionsBuilder, Value};
 pub use error::CliOptionsError;
+use hurl::parallel::job::JobVariable;
 
 /// Represents the list of all options that can be used in Hurl command line.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,6 +83,7 @@ pub struct CliOptions {
     pub insecure: bool,
     pub ip_resolve: Option<IpResolve>,
     pub jobs: Option<usize>,
+    pub job_variables: Vec<JobVariable>,
     pub json_report_dir: Option<PathBuf>,
     pub junit_file: Option<PathBuf>,
     pub limit_rate: Option<BytesPerSec>,
@@ -393,6 +395,7 @@ impl Default for CliOptions {
             insecure: false,
             ip_resolve: None,
             jobs: None,
+            job_variables: Vec::new(),
             json_report_dir: None,
             junit_file: None,
             limit_rate: None,
@@ -655,6 +658,91 @@ mod tests {
         fs::create_dir_all(&config_dir).unwrap();
         fs::write(&config_file, content).unwrap();
         home.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn job_variable_arg_is_parsed() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let env_vars = HashMap::new();
+        let env_vars = EnvVars::new(env_vars);
+        let file = tmp_hurl_file("job_variable.hurl");
+        let args = [
+            "hurl",
+            "--job-variable",
+            "SUFFIX=red,green,blue",
+            "--job-variable",
+            "LIMIT=1,2",
+            &file,
+        ];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(
+            opts.job_variables,
+            vec![
+                hurl::parallel::job::JobVariable::new(
+                    "SUFFIX",
+                    vec![
+                        hurl::runner::Value::String("red".to_string()),
+                        hurl::runner::Value::String("green".to_string()),
+                        hurl::runner::Value::String("blue".to_string()),
+                    ],
+                ),
+                hurl::parallel::job::JobVariable::new(
+                    "LIMIT",
+                    vec![
+                        hurl::runner::Value::Number(hurl::runner::Number::Integer(1)),
+                        hurl::runner::Value::Number(hurl::runner::Number::Integer(2)),
+                    ],
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn job_variable_env_var_is_parsed() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let env_vars = HashMap::from([(
+            "HURL_JOB_VARIABLE_SUFFIX".to_string(),
+            "red,green".to_string(),
+        )]);
+        let env_vars = EnvVars::new(env_vars);
+        let file = tmp_hurl_file("job_variable_env.hurl");
+        let args = ["hurl", &file];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(
+            opts.job_variables,
+            vec![hurl::parallel::job::JobVariable::new(
+                "SUFFIX",
+                vec![
+                    hurl::runner::Value::String("red".to_string()),
+                    hurl::runner::Value::String("green".to_string()),
+                ],
+            )]
+        );
+    }
+
+    #[test]
+    fn job_variable_arg_invalid() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let env_vars = HashMap::new();
+        let env_vars = EnvVars::new(env_vars);
+        let file = tmp_hurl_file("job_variable_invalid.hurl");
+        let args = ["hurl", "--job-variable", "SUFFIX=", &file];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+
+        assert!(options::parse(args, &ctx, &env_vars).is_err());
     }
 
     #[test]

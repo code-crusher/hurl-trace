@@ -31,6 +31,8 @@ use crate::cli::options::variables::TypeKind;
 use crate::cli::options::{BoolOpt, ErrorFormat};
 use crate::cli::options::{HttpVersion, TlsVersion};
 
+use hurl::parallel::job::JobVariable;
+
 use super::{CliOptions, CliOptionsError, IpResolve, OutputType, Verbosity};
 use primitives::{
     expect_no_value, parse_value, parse_value_separator, skip_whitespace_and_comments,
@@ -131,6 +133,7 @@ fn parse_option(reader: &mut Reader, options: &mut CliOptions) -> Result<(), Con
         "http3" => parse_option_http3(reader, options),
         "insecure" => parse_option_insecure(reader, options),
         "ipv6" => parse_option_ipv6(reader, options),
+        "job-variable" => parse_option_job_variable(reader, options),
         "jobs" => parse_option_jobs(reader, options),
         "limit-rate" => parse_option_limit_rate(reader, options),
         "location" => parse_option_location(reader, options),
@@ -316,6 +319,19 @@ fn parse_option_insecure(
 fn parse_option_ipv6(reader: &mut Reader, options: &mut CliOptions) -> Result<(), ConfigFileError> {
     expect_no_value(reader)?;
     options.ip_resolve = Some(IpResolve::IpV6);
+    Ok(())
+}
+
+fn parse_option_job_variable(
+    reader: &mut Reader,
+    options: &mut CliOptions,
+) -> Result<(), ConfigFileError> {
+    parse_value_separator(reader)?;
+    let value_pos = reader.cursor().pos;
+    let value = parse_value(reader)?;
+    let (name, values) = variables::parse_job_variable(&value, TypeKind::Inferred)
+        .map_err(|e| ConfigFileError::new(value_pos, &e.to_string()))?;
+    options.job_variables.push(JobVariable::new(&name, values));
     Ok(())
 }
 
@@ -807,6 +823,31 @@ mod tests {
             options.variables.get("hobby"),
             Some(&Value::String("tennis".to_string()))
         );
+    }
+
+    #[test]
+    fn test_parse_option_job_variable() {
+        let mut reader = Reader::new("--job-variable=SUFFIX=red,green,blue\n");
+        let mut options = CliOptions::default();
+        assert!(parse_option(&mut reader, &mut options).is_ok());
+        assert_eq!(
+            options.job_variables,
+            vec![hurl::parallel::job::JobVariable::new(
+                "SUFFIX",
+                vec![
+                    Value::String("red".to_string()),
+                    Value::String("green".to_string()),
+                    Value::String("blue".to_string()),
+                ],
+            )]
+        );
+    }
+
+    #[test]
+    fn test_parse_option_job_variable_invalid() {
+        let mut reader = Reader::new("--job-variable=SUFFIX=\n");
+        let mut options = CliOptions::default();
+        assert!(parse_option(&mut reader, &mut options).is_err());
     }
 
     #[test]
