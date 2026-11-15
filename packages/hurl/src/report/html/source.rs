@@ -26,7 +26,7 @@ impl Testcase {
     pub fn get_source_html(&self, hurl_file: &HurlFile, content: &str, secrets: &[&str]) -> String {
         let nav = self.get_nav_html(content, Tab::Source, secrets);
         let nav_css = include_str!("resources/nav.css");
-        let source_div = hurl_core::format::format_html(hurl_file, false);
+        let source_div = hurl_core::format::format_html(hurl_file, false, secrets);
         let lines_div = get_numbered_lines(content, &self.errors);
         let source_css = include_str!("resources/source.css");
         let hurl_css = hurl_core::format::hurl_css();

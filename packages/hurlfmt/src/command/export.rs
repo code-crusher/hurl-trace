@@ -81,7 +81,7 @@ fn run_export(
             format::format_text(&hurl_file, color)
         }
         OutputFormat::Json => format::format_json(&hurl_file),
-        OutputFormat::Html => hurl_core::format::format_html(&hurl_file, standalone),
+        OutputFormat::Html => hurl_core::format::format_html(&hurl_file, standalone, &[]),
     };
     Ok(output)
 }

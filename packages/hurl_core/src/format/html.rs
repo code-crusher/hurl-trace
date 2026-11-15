@@ -30,8 +30,10 @@ use crate::types::{DurationUnit, SourceString, ToSource};
 ///
 /// If `standalone` is true, a complete HTML body with inline styling is returned.
 /// Otherwise, a `<pre>` HTML tag is returned, without styling.
-pub fn format(file: &HurlFile, standalone: bool) -> String {
-    let mut fmt = HtmlFormatter::new();
+///
+/// `secrets` strings are redacted from the produced HTML.
+pub fn format(file: &HurlFile, standalone: bool, secrets: &[&str]) -> String {
+    let mut fmt = HtmlFormatter::new(secrets);
     let body = fmt.format(file);
     if standalone {
         let css = include_str!("hurl.css");
@@ -61,8 +63,9 @@ pub fn hurl_css() -> String {
 }
 
 /// A HTML formatter for Hurl content.
-struct HtmlFormatter {
+struct HtmlFormatter<'a> {
     buffer: String,
+    secrets: &'a [&'a str],
 }
 
 const HURL_BASE64_VALUE_CLASS: &str = "base64";
@@ -92,11 +95,12 @@ const HURL_URL_CLASS: &str = "url";
 const HURL_VERSION_CLASS: &str = "version";
 const HURL_XML_CLASS: &str = "xml";
 
-impl HtmlFormatter {
+impl<'a> HtmlFormatter<'a> {
     /// Creates a new HTML formatter.
-    fn new() -> Self {
+    fn new(secrets: &'a [&'a str]) -> Self {
         HtmlFormatter {
             buffer: String::new(),
+            secrets,
         }
     }
 
@@ -132,11 +136,20 @@ impl HtmlFormatter {
     }
 
     fn push_untrusted(&mut self, str: &str) {
-        let escaped = str
+        let escaped = self
+            .redact(str)
             .replace('&', "&amp;")
             .replace('<', "&lt;")
             .replace('>', "&gt;");
         self.buffer.push_str(&escaped);
+    }
+
+    fn redact(&self, str: &str) -> String {
+        let mut value = str.to_string();
+        for secret in self.secrets {
+            value = value.replace(secret, "***");
+        }
+        value
     }
 
     fn push_trusted(&mut self, str: &str) {
@@ -144,7 +157,7 @@ impl HtmlFormatter {
     }
 }
 
-impl Visitor for HtmlFormatter {
+impl Visitor for HtmlFormatter<'_> {
     fn visit_base64_value(&mut self, _value: &[u8], source: &SourceString) {
         self.span_open(HURL_BASE64_VALUE_CLASS);
         self.push_source(source);
@@ -395,7 +408,7 @@ mod tests {
             },
             kind,
         };
-        let mut fmt = HtmlFormatter::new();
+        let mut fmt = HtmlFormatter::new(&[]);
         fmt.visit_multiline_string(&multiline_string);
         assert_eq!(
             fmt.buffer,
@@ -423,7 +436,7 @@ mod tests {
                 space3: "\n".to_string(),
             }],
         });
-        let mut fmt = HtmlFormatter::new();
+        let mut fmt = HtmlFormatter::new(&[]);
         fmt.visit_json_body(&value);
         assert_eq!(fmt.buffer, "<span class=\"json\">{\n   \"id\": 1\n}</span>");
     }
@@ -438,7 +451,7 @@ mod tests {
             }],
             SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
         )));
-        let mut fmt = HtmlFormatter::new();
+        let mut fmt = HtmlFormatter::new(&[]);
         fmt.visit_json_body(&value);
         assert_eq!(fmt.buffer, "<span class=\"json\">\"\\n\"</span>");
     }
@@ -447,7 +460,7 @@ mod tests {
     fn test_xml() {
         let value = "<?xml version=\"1.0\"?>\n<drink>café</drink>";
 
-        let mut fmt = HtmlFormatter::new();
+        let mut fmt = HtmlFormatter::new(&[]);
         fmt.visit_xml_body(value);
         assert_eq!(
             fmt.buffer,
@@ -457,12 +470,22 @@ mod tests {
 
     #[test]
     fn test_xml_escape() {
-        let mut fmt = HtmlFormatter::new();
+        let mut fmt = HtmlFormatter::new(&[]);
         fmt.push_untrusted("hello");
         assert_eq!(fmt.buffer, "hello");
 
-        let mut fmt = HtmlFormatter::new();
+        let mut fmt = HtmlFormatter::new(&[]);
         fmt.push_untrusted("<?xml version=\"1.0\"?>");
         assert_eq!(fmt.buffer, "&lt;?xml version=\"1.0\"?&gt;");
+    }
+
+    #[test]
+    fn test_redact_secrets() {
+        let content = "HEAD https://hurl.dev/search.html\ntoken: token_to_redact\nHTTP 200\n";
+        let file = crate::parser::parse_hurl_file(content).unwrap();
+        let html = crate::format::format_html(&file, false, &["token_to_redact"]);
+        assert!(!html.contains("token_to_redact"));
+        assert!(html.contains("token"));
+        assert!(html.contains("***"));
     }
 }
