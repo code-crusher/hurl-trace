@@ -19,6 +19,7 @@ use std::fmt;
 
 use crate::types::{Count, DurationUnit, SourceString, ToSource};
 
+use super::core::Filter;
 use super::primitive::{
     LineTerminator, Number, Placeholder, SourceInfo, Template, U64, Whitespace,
 };
@@ -288,6 +289,7 @@ pub struct VariableDefinition {
     pub space0: Whitespace,
     pub space1: Whitespace,
     pub value: VariableValue,
+    pub filters: Vec<(Whitespace, Filter)>,
 }
 
 impl fmt::Display for VariableDefinition {

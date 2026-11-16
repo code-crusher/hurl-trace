@@ -262,7 +262,7 @@ verbosity-option: "verbosity" ":" ( "brief" | "verbose" | "debug")
 
 very-verbose-option: "very-verbose" ":" boolean-option lt
 
-variable-definition: variable-name "=" variable-value
+variable-definition: variable-name "=" variable-value (sp filter)*
 
 boolean-option: boolean | placeholder
 

@@ -17,7 +17,8 @@
  */
 use hurl_core::ast::{
     BooleanOption, CountOption, DurationOption, Entry, NaturalOption, Number as AstNumber,
-    OptionKind, Placeholder, Template, VariableDefinition, VariableValue, VerbosityOption,
+    OptionKind, Placeholder, SourceInfo, Template, VariableDefinition, VariableValue,
+    VerbosityOption,
 };
 use hurl_core::types::{BytesPerSec, Count, DurationUnit};
 
@@ -27,6 +28,7 @@ use crate::util::logger::{Logger, Verbosity};
 
 use super::error::{RunnerError, RunnerErrorKind};
 use super::expr;
+use super::filter::{FilterOptions, eval_filters};
 use super::number::Number;
 use super::output::Output;
 use super::runner_options::RunnerOptions;
@@ -335,8 +337,37 @@ pub fn get_entry_options(
                 let value = eval_template(value, variables)?;
                 entry_options.user = Some(value);
             }
-            OptionKind::Variable(VariableDefinition { name, value, .. }) => {
-                let value = eval_variable_value(value, variables)?;
+            OptionKind::Variable(VariableDefinition {
+                name,
+                value,
+                filters,
+                ..
+            }) => {
+                let mut value = eval_variable_value(value, variables)?;
+                if !filters.is_empty() {
+                    let filters = filters.iter().map(|(_, f)| f).collect::<Vec<_>>();
+                    value = match eval_filters(
+                        &filters,
+                        &value,
+                        variables,
+                        false,
+                        &FilterOptions {
+                            use_jsonpath_coercion: entry_options.use_jsonpath_coercion,
+                        },
+                    )? {
+                        Some(value) => value,
+                        None => {
+                            let start = filters.first().unwrap().source_info.start;
+                            let end = filters.last().unwrap().source_info.end;
+                            let pos = SourceInfo::new(start, end);
+                            return Err(RunnerError::new(
+                                pos,
+                                RunnerErrorKind::NoFilterResult,
+                                false,
+                            ));
+                        }
+                    };
+                }
                 variables.insert(name.clone(), value);
             }
             // verbose and very-verbose option have been previously processed as they
@@ -575,7 +606,8 @@ fn eval_number(number: &AstNumber) -> Value {
 #[cfg(test)]
 mod tests {
     use hurl_core::ast::{
-        Duration, Expr, ExprKind, Placeholder, SourceInfo, U64, Variable, Whitespace,
+        Duration, Expr, ExprKind, Filter, FilterValue, Placeholder, SourceInfo, Template,
+        TemplateElement, U64, Variable, VariableValue, Whitespace,
     };
     use hurl_core::reader::Pos;
     use hurl_core::types::{DurationUnit, ToSource};
@@ -687,5 +719,34 @@ mod tests {
             .unwrap(),
             std::time::Duration::from_millis(10)
         );
+    }
+
+    #[test]
+    fn test_eval_variable_value_with_filters() {
+        let mut variables = VariableSet::default();
+        let filter = Filter {
+            source_info: SourceInfo::new(Pos::new(1, 9), Pos::new(1, 21)),
+            value: FilterValue::Utf8Encode,
+        };
+        let variable_value = VariableValue::String(Template::new(
+            Some('"'),
+            vec![TemplateElement::String {
+                value: "test".to_string(),
+                source: "test".to_source(),
+            }],
+            SourceInfo::new(Pos::new(1, 3), Pos::new(1, 9)),
+        ));
+
+        let value = eval_variable_value(&variable_value, &mut variables).unwrap();
+        let value = eval_filters(
+            &[&filter],
+            &value,
+            &variables,
+            false,
+            &FilterOptions::default(),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(value, Value::Bytes(b"test".to_vec()));
     }
 }

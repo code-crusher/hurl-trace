@@ -25,6 +25,7 @@ use crate::types::Count;
 
 use super::duration::duration;
 use super::error::{ParseError, ParseErrorKind};
+use super::filter::filters;
 use super::number::{integer, natural, number};
 use super::primitives::{
     boolean, line_terminator, literal, null, optional_line_terminators, try_literal,
@@ -461,6 +462,7 @@ fn variable_definition(reader: &mut Reader) -> ParseResult<VariableDefinition> {
     literal("=", reader)?;
     let space1 = zero_or_more_spaces(reader)?;
     let value = variable_value(reader)?;
+    let filters = filters(reader)?;
     let end = reader.cursor();
     let source_info = SourceInfo {
         start: start.pos,
@@ -472,6 +474,7 @@ fn variable_definition(reader: &mut Reader) -> ParseResult<VariableDefinition> {
         space0,
         space1,
         value,
+        filters,
     })
 }
 
@@ -544,7 +547,9 @@ fn variable_value(reader: &mut Reader) -> ParseResult<VariableValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{I64, LineTerminator, Number, Template, TemplateElement, Whitespace};
+    use crate::ast::{
+        Filter, FilterValue, I64, LineTerminator, Number, Template, TemplateElement, Whitespace,
+    };
     use crate::reader::Pos;
     use crate::types::ToSource;
 
@@ -771,6 +776,45 @@ mod tests {
                     source_info: SourceInfo::new(Pos::new(1, 3), Pos::new(1, 3)),
                 },
                 value: VariableValue::Number(Number::Integer(I64::new(1, "1".to_source()))),
+                filters: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn test_variable_definition_with_filters() {
+        let mut reader = Reader::new("a=\"test\" base64Encode");
+        assert_eq!(
+            variable_definition(&mut reader).unwrap(),
+            VariableDefinition {
+                source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 22)),
+                name: "a".to_string(),
+                space0: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 2), Pos::new(1, 2)),
+                },
+                space1: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 3), Pos::new(1, 3)),
+                },
+                value: VariableValue::String(Template::new(
+                    Some('"'),
+                    vec![TemplateElement::String {
+                        value: "test".to_string(),
+                        source: "test".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 3), Pos::new(1, 9)),
+                )),
+                filters: vec![(
+                    Whitespace {
+                        value: " ".to_string(),
+                        source_info: SourceInfo::new(Pos::new(1, 9), Pos::new(1, 10)),
+                    },
+                    Filter {
+                        source_info: SourceInfo::new(Pos::new(1, 10), Pos::new(1, 22)),
+                        value: FilterValue::Base64Encode,
+                    },
+                )],
             }
         );
     }

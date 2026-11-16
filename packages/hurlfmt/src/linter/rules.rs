@@ -659,9 +659,15 @@ fn lint_filter_value(filter_value: &FilterValue) -> FilterValue {
 }
 
 fn lint_variable_definition(var_def: &VariableDefinition) -> VariableDefinition {
+    let filters = var_def
+        .filters
+        .iter()
+        .map(|(_, f)| (one_whitespace(), lint_filter(f)))
+        .collect();
     VariableDefinition {
         space0: empty_whitespace(),
         space1: empty_whitespace(),
+        filters,
         ..var_def.clone()
     }
 }

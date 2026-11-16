@@ -823,6 +823,16 @@ impl Lint for VariableDefinition {
         s.push_str(&self.name);
         s.push('=');
         s.push_str(&self.value.lint());
+        if !self.filters.is_empty() {
+            s.push(' ');
+            let filters = self
+                .filters
+                .iter()
+                .map(|(_, f)| f.value.lint())
+                .collect::<Vec<_>>()
+                .join(" ");
+            s.push_str(&filters);
+        }
         s
     }
 }

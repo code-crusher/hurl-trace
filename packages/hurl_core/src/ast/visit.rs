@@ -817,6 +817,10 @@ pub fn walk_variable_def<V: Visitor>(visitor: &mut V, def: &VariableDefinition) 
     visitor.visit_literal("=");
     visitor.visit_whitespace(&def.space1);
     visitor.visit_variable_value(&def.value);
+    for (space, filter) in def.filters.iter() {
+        visitor.visit_whitespace(space);
+        visitor.visit_filter(filter);
+    }
 }
 
 pub fn walk_variable_value<V: Visitor>(visitor: &mut V, value: &VariableValue) {

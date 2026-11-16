@@ -247,6 +247,7 @@ unix-socket: sock               # use Unix socket for transfer
 user: bob:secret                # use basic authentication
 variable: country=Italy         # define variable country
 variable: planet=Earth          # define variable planet
+variable: token="secret" base64Encode  # define a variable, filtered
 verbosity: brief                # allow brief verbose
 verbose: true                   # allow verbose output
 very-verbose: true              # allow more verbose output    
@@ -254,6 +255,19 @@ very-verbose: true              # allow more verbose output
 
 > Variables defined in an `[Options]` section are defined also for the next entries. This is the
 > exception, all other options are defined only for the current request.
+
+Variable values can be transformed with [filters], like any other value:
+
+```hurl
+POST https://example.org/api/records
+[Options]
+variable: message="test" utf8Encode base64Encode
+Content-Type: application/json
+{"records":[{"message":"{{message}}"}]}
+```
+
+Here, the variable `message` is first encoded to bytes with the [`utf8Encode`] filter and then
+encoded to a Base64 string with the [`base64Encode`] filter.
 
 ### Query parameters
 
@@ -766,3 +780,6 @@ File are relative to the input Hurl file, and cannot contain implicit parent dir
 [GraphQL variables]: https://graphql.org/learn/queries/#variables
 [options]: #options
 [Hurl Unicode literals]: /docs/hurl-file.md#special-characters-in-strings
+[filters]: /docs/filters.md
+[`utf8Encode`]: /docs/filters.md#utf8encode
+[`base64Encode`]: /docs/filters.md#base64encode
