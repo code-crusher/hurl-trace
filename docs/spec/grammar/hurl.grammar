@@ -48,6 +48,7 @@ request-section:
   | multipart-form-data-section
   | cookies-section
   | options-section
+  | command-section
 
 response-section:
     captures-section
@@ -93,6 +94,15 @@ options-section:
   lt*
   "[Options]" lt
   option*
+
+command-section:
+  lt*
+  "[Command]" lt
+  command*
+
+command:
+  lt*
+  ("pre-request" | "post-request") ":" value-string lt
 
 key-value: key-string ":" value-string
 
@@ -303,6 +313,7 @@ query:
   | bytes-query
   | sha256-query
   | md5-query
+  | command-query
 
 status-query: "status"
 
@@ -335,6 +346,8 @@ sha256-query: "sha256"
 md5-query: "md5"
 
 bytes-query: "bytes"
+
+command-query: "command" sp quoted-string sp ("ret-code" | "stdout" | "stderr")
 
 
 # Predicates

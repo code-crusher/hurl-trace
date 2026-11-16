@@ -26,6 +26,14 @@ pub fn input_files() -> clap::Arg {
         .num_args(1..)
 }
 
+pub fn allow_commands() -> clap::Arg {
+    clap::Arg::new("allow_commands")
+        .long("allow-commands")
+        .help("Allow Hurl file to run shell commands declared in [Command] sections")
+        .help_heading("Run options")
+        .action(clap::ArgAction::SetTrue)
+}
+
 pub fn aws_sigv4() -> clap::Arg {
     clap::Arg::new("aws_sigv4")
         .long("aws-sigv4")

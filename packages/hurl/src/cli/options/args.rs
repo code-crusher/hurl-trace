@@ -117,6 +117,7 @@ where
         .arg(commands::very_verbose())
         .arg(commands::verbosity())
         // Run options
+        .arg(commands::allow_commands())
         .arg(commands::continue_on_error())
         .arg(commands::delay())
         .arg(commands::from_entry())
@@ -188,6 +189,7 @@ fn parse_arg_matches(
     context: &RunContext,
     default_options: CliOptions,
 ) -> Result<CliOptions, CliOptionsError> {
+    let allow_commands = allow_commands(arg_matches, default_options.allow_commands);
     let aws_sigv4 = aws_sigv4(arg_matches, default_options.aws_sigv4);
     let cacert_file = cacert_file(arg_matches, default_options.cacert_file)?;
     let client_cert_file = client_cert_file(arg_matches, default_options.client_cert_file)?;
@@ -262,6 +264,7 @@ fn parse_arg_matches(
     let verbosity = verbosity(arg_matches, default_options.verbosity);
 
     Ok(CliOptions {
+        allow_commands,
         aws_sigv4,
         cacert_file,
         client_cert_file,
@@ -352,6 +355,14 @@ fn cacert_file(
                 )))
             }
         }
+    }
+}
+
+fn allow_commands(arg_matches: &ArgMatches, default_value: bool) -> bool {
+    if has_flag(arg_matches, "allow_commands") {
+        true
+    } else {
+        default_value
     }
 }
 

@@ -994,6 +994,29 @@ ip not isIpv6
 ip == "172.16.45.87"
 ```
 
+### Command assert
+
+Check the result of a command declared in the [`[Command]` section] of the request. A command assert consists of the
+keyword `command`, followed by the command name and the attribute to check.
+
+The following attributes are supported: `ret-code` (the exit code as an integer), `stdout` and `stderr` (both strings).
+
+```hurl
+GET https://example.org/configure
+[Command]
+pre-request: ./reset-database.sh
+post-request: ./check-logs.sh
+HTTP 202
+[Asserts]
+command "pre-request" ret-code == 0
+command "post-request" stdout contains "Configured system correctly"
+command "post-request" stderr == ""
+```
+
+If no command has been run with the given name, the assert fails with a `Command not found` error.
+
+> Commands must be explicitly enabled with the [`--allow-commands` option].
+
 ### Variable assert
 
 ```hurl
@@ -1067,5 +1090,7 @@ certificate "Value" startsWith "-----BEGIN CERTIFICATE-----"
 [UUID v4]: https://en.wikipedia.org/wiki/Universally_unique_identifier
 [coercion to the JSONPath]: /docs/asserting-response.md#jsonpath-coercion
 [`--no-jsonpath-coercion` option]: /docs/manual.md#no-jsonpath-coercion
+[`[Command]` section]: /docs/request.md#commands
+[`--allow-commands` option]: /docs/manual.md#allow-commands
 [Hurl configuration file]: /docs/manual.md#configuration
 [RFC 9535: JSONPATH: Query Expression for JSON]: https://www.rfc-editor.org/info/rfc9535/

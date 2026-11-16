@@ -16,12 +16,12 @@
  *
  */
 use hurl_core::ast::{
-    Assert, Base64, Body, BooleanOption, Bytes, Capture, CertificateAttributeName, Comment, Cookie,
-    CookiePath, CountOption, Duration, DurationOption, Entry, EntryOption, File, FilenameParam,
-    FilenameValue, FilterValue, Hex, HurlFile, I64, IntegerValue, JsonValue, KeyValue,
-    LineTerminator, Method, MultilineString, MultipartParam, NaturalOption, Number, OptionKind,
-    Placeholder, Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue, Regex,
-    RegexValue, Request, Response, Section, SectionValue, StatusValue, Template, U64,
+    Assert, Base64, Body, BooleanOption, Bytes, Capture, CertificateAttributeName, Command, Comment,
+    Cookie, CookiePath, CountOption, Duration, DurationOption, Entry, EntryOption, File,
+    FilenameParam, FilenameValue, FilterValue, Hex, HurlFile, I64, IntegerValue, JsonValue,
+    KeyValue, LineTerminator, Method, MultilineString, MultipartParam, NaturalOption, Number,
+    OptionKind, Placeholder, Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue,
+    Regex, RegexValue, Request, Response, Section, SectionValue, StatusValue, Template, U64,
     VariableDefinition, VariableValue, VerbosityOption, VersionValue,
 };
 use hurl_core::types::{Count, DurationUnit, ToSource};
@@ -561,6 +561,14 @@ impl Lint for Query {
             }
             QueryValue::Ip => {}
             QueryValue::Redirects => {}
+            QueryValue::Command {
+                name, attribute, ..
+            } => {
+                s.push(' ');
+                s.push_str(&name.lint());
+                s.push(' ');
+                s.push_str(attribute.identifier());
+            }
         }
         s
     }
@@ -717,6 +725,9 @@ impl Lint for Request {
         if let Some(section) = get_cookies_section(self) {
             s.push_str(&section.lint());
         }
+        if let Some(section) = get_commands_section(self) {
+            s.push_str(&section.lint());
+        }
         if let Some(body) = &self.body {
             s.push_str(&body.lint());
         }
@@ -794,7 +805,26 @@ impl Lint for SectionValue {
             SectionValue::Options(options) => {
                 options.iter().for_each(|o| s.push_str(&o.lint()));
             }
+            SectionValue::Commands(commands) => {
+                commands.iter().for_each(|c| s.push_str(&c.lint()));
+            }
         }
+        s
+    }
+}
+
+impl Lint for Command {
+    fn lint(&self) -> String {
+        let mut s = String::new();
+        self.line_terminators
+            .iter()
+            .for_each(|lt| s.push_str(&lint_lt(lt, false)));
+        s.push_str(self.name.identifier());
+        s.push_str(&self.space1.value);
+        s.push(':');
+        s.push_str(&self.space2.value);
+        s.push_str(&self.command.lint());
+        s.push_str(&lint_lt(&self.line_terminator0, true));
         s
     }
 }
@@ -866,6 +896,15 @@ fn get_captures_section(response: &Response) -> Option<&Section> {
 fn get_cookies_section(request: &Request) -> Option<&Section> {
     for s in &request.sections {
         if let SectionValue::Cookies(_) = s.value {
+            return Some(s);
+        }
+    }
+    None
+}
+
+fn get_commands_section(request: &Request) -> Option<&Section> {
+    for s in &request.sections {
+        if let SectionValue::Commands(_) = s.value {
             return Some(s);
         }
     }

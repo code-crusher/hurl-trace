@@ -23,7 +23,9 @@ use super::option::EntryOption;
 use super::primitive::{
     Bytes, I64, KeyValue, LineTerminator, Placeholder, SourceInfo, Template, Whitespace,
 };
-use super::section::{Assert, Capture, Cookie, MultipartParam, RegexValue, Section, SectionValue};
+use super::section::{
+    Assert, Capture, Command, Cookie, MultipartParam, RegexValue, Section, SectionValue,
+};
 
 /// Represents Hurl AST root node.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -127,6 +129,18 @@ impl Request {
         for section in &self.sections {
             if let SectionValue::Options(options) = &section.value {
                 return options;
+            }
+        }
+        &[]
+    }
+
+    /// Returns the commands declared for this request.
+    ///
+    /// Commands are run before (`pre-request`) or after (`post-request`) the HTTP request.
+    pub fn commands(&self) -> &[Command] {
+        for section in &self.sections {
+            if let SectionValue::Commands(commands) = &section.value {
+                return commands;
             }
         }
         &[]

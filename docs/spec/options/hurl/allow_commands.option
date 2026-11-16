@@ -1,0 +1,11 @@
+name: allow_commands
+long: allow-commands
+help: Allow Hurl file to run shell commands declared in [Command] sections
+help_heading: Run options
+config_file: true
+env_var: HURL_ALLOW_COMMANDS
+---
+Allow Hurl file to run shell commands declared in `[Command]` sections.
+
+For security reasons, command execution is disabled by default: a Hurl file containing a `[Command]` section fails
+with an error unless this option is set. Only enable it for Hurl files you trust.

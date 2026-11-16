@@ -288,6 +288,7 @@ pub mod tests {
                 &context_dir,
                 &QueryOptions {
                     use_jsonpath_coercion: true,
+                    ..Default::default()
                 },
             ),
             AssertResult::Explicit {

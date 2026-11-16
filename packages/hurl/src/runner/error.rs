@@ -74,6 +74,17 @@ pub enum RunnerErrorKind {
     },
     /// The user tries to output binaries data to standard output.
     BinaryOutput,
+    /// A command declared in a `[Command]` section can not be run.
+    CommandExecution {
+        command: String,
+        error: String,
+    },
+    /// A `[Command]` section is used but command execution is not allowed.
+    CommandsNotAllowed,
+    /// A command query references a command that has not been run.
+    CommandNotFound {
+        name: String,
+    },
     ExpressionInvalidType {
         value: String,
         expecting: String,
@@ -158,6 +169,9 @@ impl DisplaySourceError for RunnerError {
             RunnerErrorKind::AssertStatus { .. } => "Assert status code".to_string(),
             RunnerErrorKind::AssertVersion { .. } => "Assert HTTP version".to_string(),
             RunnerErrorKind::BinaryOutput => "Binary output".to_string(),
+            RunnerErrorKind::CommandExecution { .. } => "Command execution".to_string(),
+            RunnerErrorKind::CommandNotFound { .. } => "Command not found".to_string(),
+            RunnerErrorKind::CommandsNotAllowed => "Commands not allowed".to_string(),
             RunnerErrorKind::ExpressionInvalidType { .. } => "Invalid expression type".to_string(),
             RunnerErrorKind::FileReadAccess { .. } => "File read access".to_string(),
             RunnerErrorKind::FileWriteAccess { .. } => "File write access".to_string(),
@@ -234,6 +248,21 @@ impl DisplaySourceError for RunnerError {
             }
             RunnerErrorKind::BinaryOutput => {
                 let message = "binary output can mess up your terminal. Use \"--output -\" to tell Hurl to output it to your terminal anyway, or consider \"--output\" to save to a file";
+                let message = error::add_carets(message, self.source_info, content);
+                color_red_multiline_string(&message)
+            }
+            RunnerErrorKind::CommandExecution { command, error } => {
+                let message = &format!("command <{command}> can not be run ({error})");
+                let message = error::add_carets(message, self.source_info, content);
+                color_red_multiline_string(&message)
+            }
+            RunnerErrorKind::CommandNotFound { name } => {
+                let message = &format!("no command has been run with name <{name}>");
+                let message = error::add_carets(message, self.source_info, content);
+                color_red_multiline_string(&message)
+            }
+            RunnerErrorKind::CommandsNotAllowed => {
+                let message = "commands are not allowed by default, check --allow-commands option";
                 let message = error::add_carets(message, self.source_info, content);
                 color_red_multiline_string(&message)
             }

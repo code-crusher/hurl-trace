@@ -51,6 +51,7 @@ pub use error::CliOptionsError;
 /// Represents the list of all options that can be used in Hurl command line.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CliOptions {
+    pub allow_commands: bool,
     pub aws_sigv4: Option<String>,
     pub cacert_file: Option<String>,
     pub client_cert_file: Option<String>,
@@ -362,6 +363,7 @@ pub enum OutputType {
 impl Default for CliOptions {
     fn default() -> Self {
         CliOptions {
+            allow_commands: false,
             aws_sigv4: None,
             cacert_file: None,
             client_cert_file: None,
@@ -508,6 +510,7 @@ impl CliOptions {
         let netrc_optional = self.netrc_optional;
         let no_assert = self.no_assert;
         let use_jsonpath_coercion = !self.no_jsonpath_coercion;
+        let allow_commands = self.allow_commands;
         let mut no_headers = Vec::new();
         for no_header in self.no_headers.iter() {
             let no_header = no_header.trim().to_string();
@@ -555,6 +558,7 @@ impl CliOptions {
         let user_agent = self.user_agent.clone();
 
         Ok(RunnerOptionsBuilder::new()
+            .allow_commands(allow_commands)
             .aws_sigv4(aws_sigv4)
             .cacert_file(cacert_file)
             .client_cert_file(client_cert_file)

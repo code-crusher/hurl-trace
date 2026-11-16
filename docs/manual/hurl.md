@@ -546,6 +546,15 @@ Environment variables: HURL_VERY_VERBOSE
 
 ### Run options
 
+#### --allow-commands {#allow-commands}
+
+Allow Hurl file to run shell commands declared in `[Command]` sections.
+
+For security reasons, command execution is disabled by default: a Hurl file containing a `[Command]` section fails
+with an error unless this option is set. Only enable it for Hurl files you trust.
+
+Environment variables: HURL_ALLOW_COMMANDS
+
 #### --continue-on-error {#continue-on-error}
 
 Continue executing requests to the end of the Hurl file even when an assert error occurs. By default, Hurl exits after an assert error in the HTTP response.

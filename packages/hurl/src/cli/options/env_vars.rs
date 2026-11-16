@@ -42,6 +42,7 @@ pub struct EnvVars {
 /// All the supported env vars.
 const HURL_PREFIX: &str = "HURL_";
 
+const HURL_ALLOW_COMMANDS: &str = "HURL_ALLOW_COMMANDS";
 const HURL_COLOR: &str = "HURL_COLOR";
 const HURL_COMPRESSED: &str = "HURL_COMPRESSED";
 const HURL_FAIL_WITH_BODY: &str = "HURL_FAIL_WITH_BODY";
@@ -112,6 +113,11 @@ impl EnvVars {
 
     pub fn xdg_config_home(&self) -> Option<&str> {
         self.all_env_vars.get(XDG_CONFIG_HOME).map(|v| v.as_str())
+    }
+
+    /// Returns the env var for allowing commands execution.
+    pub fn allow_commands(&self) -> Option<bool> {
+        self.get_bool(HURL_ALLOW_COMMANDS)
     }
 
     /// Returns the env var for compressed response.
@@ -399,6 +405,10 @@ impl EnvVars {
                 _ => None,
             })
     }
+}
+
+fn allow_commands(env_vars: &EnvVars, default_value: bool) -> bool {
+    env_vars.allow_commands().unwrap_or(default_value)
 }
 
 fn compressed(env_vars: &EnvVars, default_value: bool) -> bool {
@@ -795,6 +805,7 @@ pub fn parse_env_vars(
     env_vars: &EnvVars,
     default_options: CliOptions,
 ) -> Result<CliOptions, CliOptionsError> {
+    let allow_commands = allow_commands(env_vars, default_options.allow_commands);
     let color_stdout = color(env_vars, default_options.color_stdout);
     let color_stderr = color(env_vars, default_options.color_stderr);
     let compressed = compressed(env_vars, default_options.compressed);
@@ -836,6 +847,7 @@ pub fn parse_env_vars(
     let test = test(env_vars, default_options.test);
 
     Ok(CliOptions {
+        allow_commands,
         color_stdout,
         color_stderr,
         compressed,

@@ -15,7 +15,9 @@
  * limitations under the License.
  *
  */
-use crate::ast::{CertificateAttributeName, Query, QueryValue, RegexValue, SourceInfo};
+use crate::ast::{
+    CertificateAttributeName, CommandAttribute, Query, QueryValue, RegexValue, SourceInfo,
+};
 use crate::combinator::{ParseError as ParseErrorTrait, choice};
 use crate::reader::{Pos, Reader};
 
@@ -56,6 +58,7 @@ fn query_value(reader: &mut Reader) -> ParseResult<QueryValue> {
             certificate_query,
             ip_query,
             redirects_query,
+            command_query,
         ],
         reader,
     )
@@ -213,6 +216,27 @@ fn ip_query(reader: &mut Reader) -> ParseResult<QueryValue> {
 fn redirects_query(reader: &mut Reader) -> ParseResult<QueryValue> {
     try_literal("redirects", reader)?;
     Ok(QueryValue::Redirects)
+}
+
+fn command_query(reader: &mut Reader) -> ParseResult<QueryValue> {
+    try_literal("command", reader)?;
+    let space0 = one_or_more_spaces(reader)?;
+    let name = quoted_template(reader).map_err(|e| e.to_non_recoverable())?;
+    let space1 = one_or_more_spaces(reader)?;
+    let start = reader.cursor();
+    let attribute = reader.read_while(|c| c.is_alphanumeric() || c == '-');
+    let Some(attribute) = CommandAttribute::parse(&attribute) else {
+        let kind = ParseErrorKind::Expecting {
+            value: "ret-code, stdout or stderr".to_string(),
+        };
+        return Err(ParseError::new(start.pos, false, kind));
+    };
+    Ok(QueryValue::Command {
+        space0,
+        name,
+        space1,
+        attribute,
+    })
 }
 
 fn certificate_field(reader: &mut Reader) -> ParseResult<CertificateAttributeName> {
@@ -450,6 +474,67 @@ mod tests {
             Query {
                 source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 6)),
                 value: QueryValue::Bytes,
+            }
+        );
+    }
+
+    #[test]
+    fn test_command_query() {
+        let mut reader = Reader::new("command \"pre-request\" ret-code");
+        assert_eq!(
+            command_query(&mut reader).unwrap(),
+            QueryValue::Command {
+                space0: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 8), Pos::new(1, 9)),
+                },
+                name: Template::new(
+                    Some('"'),
+                    vec![TemplateElement::String {
+                        value: "pre-request".to_string(),
+                        source: "pre-request".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 9), Pos::new(1, 22)),
+                ),
+                space1: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 22), Pos::new(1, 23)),
+                },
+                attribute: CommandAttribute::RetCode,
+            }
+        );
+        assert_eq!(reader.cursor().index, CharPos(30));
+
+        let mut reader = Reader::new("command \"post-request\" stdout");
+        assert_eq!(
+            command_query(&mut reader).unwrap(),
+            QueryValue::Command {
+                space0: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 8), Pos::new(1, 9)),
+                },
+                name: Template::new(
+                    Some('"'),
+                    vec![TemplateElement::String {
+                        value: "post-request".to_string(),
+                        source: "post-request".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 9), Pos::new(1, 23)),
+                ),
+                space1: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 23), Pos::new(1, 24)),
+                },
+                attribute: CommandAttribute::Stdout,
+            }
+        );
+
+        let mut reader = Reader::new("command \"pre-request\" unknown");
+        let error = command_query(&mut reader).err().unwrap();
+        assert_eq!(
+            error.kind,
+            ParseErrorKind::Expecting {
+                value: "ret-code, stdout or stderr".to_string()
             }
         );
     }

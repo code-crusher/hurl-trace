@@ -114,6 +114,7 @@ Output options:
                                debug]
 
 Run options:
+      --allow-commands                 Allow Hurl file to run shell commands declared in [Command] sections
       --continue-on-error              Continue executing requests even if an error occurs
       --delay <MILLISECONDS>           Sets delay before each request (aka sleep) [default: 0]
       --from-entry <ENTRY_NUMBER>      Execute Hurl file from ENTRY_NUMBER (starting at 1)

@@ -27,6 +27,7 @@ use super::output::Output;
 
 /// Build a [`RunnerOptions`] instance.
 pub struct RunnerOptionsBuilder {
+    allow_commands: bool,
     allow_reuse: bool,
     aws_sigv4: Option<String>,
     cacert_file: Option<String>,
@@ -86,6 +87,7 @@ pub struct RunnerOptionsBuilder {
 impl Default for RunnerOptionsBuilder {
     fn default() -> Self {
         RunnerOptionsBuilder {
+            allow_commands: false,
             allow_reuse: true,
             aws_sigv4: None,
             cacert_file: None,
@@ -148,6 +150,15 @@ impl RunnerOptionsBuilder {
     /// Returns a new Hurl runner options builder with a default values.
     pub fn new() -> Self {
         RunnerOptionsBuilder::default()
+    }
+
+    /// Allow running shell commands declared in `[Command]` sections, `false` by default.
+    ///
+    /// Running arbitrary commands from a Hurl file is a security risk, so it must be explicitly
+    /// enabled by the user.
+    pub fn allow_commands(&mut self, allow_commands: bool) -> &mut Self {
+        self.allow_commands = allow_commands;
+        self
     }
 
     /// Allow reusing internal connections, `true` by default. Setting this to `false` forces the
@@ -517,6 +528,7 @@ impl RunnerOptionsBuilder {
     /// Create an instance of [`RunnerOptions`].
     pub fn build(&self) -> RunnerOptions {
         RunnerOptions {
+            allow_commands: self.allow_commands,
             allow_reuse: self.allow_reuse,
             aws_sigv4: self.aws_sigv4.clone(),
             cacert_file: self.cacert_file.clone(),
@@ -581,6 +593,8 @@ impl RunnerOptionsBuilder {
 /// are used to configure asserts settings, output etc....
 #[derive(Clone, Debug, PartialEq)]
 pub struct RunnerOptions {
+    /// Allow running shell commands declared in `[Command]` sections.
+    pub(crate) allow_commands: bool,
     /// Allow reusing internal connections.
     pub(crate) allow_reuse: bool,
     /// Specifies the AWS SigV4 option.

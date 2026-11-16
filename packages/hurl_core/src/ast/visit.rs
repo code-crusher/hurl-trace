@@ -36,8 +36,9 @@ use super::primitive::{
     Placeholder, Regex, Template, U64, Whitespace,
 };
 use super::section::{
-    Assert, Capture, Cookie, CookiePath, FilenameParam, FilenameValue, MultipartParam, Predicate,
-    PredicateFuncValue, PredicateValue, Query, QueryValue, RegexValue, Section, SectionValue,
+    Assert, Capture, Command, Cookie, CookiePath, FilenameParam, FilenameValue, MultipartParam,
+    Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue, RegexValue, Section,
+    SectionValue,
 };
 
 /// Each method of the `Visitor` trait is a hook to be potentially overridden. Each method's default
@@ -67,6 +68,10 @@ pub trait Visitor: Sized {
 
     fn visit_capture(&mut self, capture: &Capture) {
         walk_capture(self, capture);
+    }
+
+    fn visit_command(&mut self, command: &Command) {
+        walk_command(self, command);
     }
 
     fn visit_cookie(&mut self, cookie: &Cookie) {
@@ -309,6 +314,19 @@ pub fn walk_capture<V: Visitor>(visitor: &mut V, capture: &Capture) {
         visitor.visit_string("redact");
     }
     visitor.visit_lt(&capture.line_terminator0);
+}
+
+pub fn walk_command<V: Visitor>(visitor: &mut V, command: &Command) {
+    command.line_terminators.iter().for_each(|lt| {
+        visitor.visit_lt(lt);
+    });
+    visitor.visit_whitespace(&command.space0);
+    visitor.visit_string(command.name.identifier());
+    visitor.visit_whitespace(&command.space1);
+    visitor.visit_literal(":");
+    visitor.visit_whitespace(&command.space2);
+    visitor.visit_template(&command.command);
+    visitor.visit_lt(&command.line_terminator0);
 }
 
 pub fn walk_cookie<V: Visitor>(visitor: &mut V, cookie: &Cookie) {
@@ -644,6 +662,17 @@ pub fn walk_query<V: Visitor>(visitor: &mut V, query: &Query) {
             visitor.visit_whitespace(space0);
             visitor.visit_string(attribute_name.to_source().as_str());
         }
+        QueryValue::Command {
+            space0,
+            name,
+            space1,
+            attribute,
+        } => {
+            visitor.visit_whitespace(space0);
+            visitor.visit_template(name);
+            visitor.visit_whitespace(space1);
+            visitor.visit_string(attribute.identifier());
+        }
         QueryValue::Body
         | QueryValue::Status
         | QueryValue::Url
@@ -808,6 +837,7 @@ pub fn walk_section_value<V: Visitor>(visitor: &mut V, section_value: &SectionVa
             options.iter().for_each(|o| visitor.visit_entry_option(o));
         }
         SectionValue::QueryParams(params, _) => params.iter().for_each(|p| visitor.visit_kv(p)),
+        SectionValue::Commands(commands) => commands.iter().for_each(|c| visitor.visit_command(c)),
     }
 }
 

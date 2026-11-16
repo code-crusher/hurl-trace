@@ -17,8 +17,8 @@
  */
 use chrono::Utc;
 use hurl_core::ast::{
-    CertificateAttributeName, CookieAttribute, CookieAttributeName, CookiePath, Query, QueryValue,
-    RegexValue, SourceInfo, Template,
+    CertificateAttributeName, CommandAttribute, CookieAttribute, CookieAttributeName, CookiePath,
+    Query, QueryValue, RegexValue, SourceInfo, Template,
 };
 use regex::Regex;
 use sha2::Digest;
@@ -26,6 +26,7 @@ use sha2::Digest;
 use crate::http::{HttpError, Response, ResponseCookie};
 
 use super::cache::BodyCache;
+use super::command::CommandResults;
 use super::error::{RunnerError, RunnerErrorKind};
 use super::filter;
 use super::http_response::HttpResponse;
@@ -38,14 +39,17 @@ use super::xpath::{Document, Format};
 pub type QueryResult = Result<Option<Value>, RunnerError>;
 
 /// Options controlling query evaluation behavior.
-pub struct QueryOptions {
+pub struct QueryOptions<'a> {
     pub use_jsonpath_coercion: bool,
+    /// The results of the commands run for the current entry, used by command queries.
+    pub commands: Option<&'a CommandResults>,
 }
 
-impl Default for QueryOptions {
+impl Default for QueryOptions<'_> {
     fn default() -> Self {
         QueryOptions {
             use_jsonpath_coercion: true,
+            commands: None,
         }
     }
 }
@@ -95,7 +99,34 @@ pub fn eval_query(
         } => eval_query_certificate(last_response, *field),
         QueryValue::Ip => eval_ip(last_response),
         QueryValue::Redirects => eval_redirects(responses),
+        QueryValue::Command {
+            name, attribute, ..
+        } => eval_query_command(name, *attribute, variables, query.source_info, options),
     }
+}
+
+/// Evaluates the `attribute` of the result of a command `name`.
+fn eval_query_command(
+    name: &Template,
+    attribute: CommandAttribute,
+    variables: &VariableSet,
+    query_source_info: SourceInfo,
+    options: &QueryOptions,
+) -> QueryResult {
+    let name = eval_template(name, variables)?;
+    let Some(result) = options
+        .commands
+        .and_then(|commands| commands.get(&name))
+    else {
+        let kind = RunnerErrorKind::CommandNotFound { name };
+        return Err(RunnerError::new(query_source_info, kind, false));
+    };
+    let value = match attribute {
+        CommandAttribute::RetCode => Value::Number(Number::Integer(i64::from(result.ret_code))),
+        CommandAttribute::Stdout => Value::String(result.stdout.clone()),
+        CommandAttribute::Stderr => Value::String(result.stderr.clone()),
+    };
+    Ok(Some(value))
 }
 
 /// Evaluates the response status code using the HTTP `response`.
@@ -544,12 +575,13 @@ impl Value {
 pub mod tests {
     use std::num::ParseIntError;
 
-    use hurl_core::ast::{SourceInfo, TemplateElement, Whitespace};
+    use hurl_core::ast::{CommandName, SourceInfo, TemplateElement, Whitespace};
     use hurl_core::reader::Pos;
     use hurl_core::types::ToSource;
 
     use super::*;
     use crate::http;
+    use crate::runner::command::CommandResult;
     use crate::http::{HeaderVec, HttpError, HttpVersion};
 
     fn default_response() -> Response {
@@ -760,6 +792,125 @@ pub mod tests {
         assert_eq!(
             Value::from_json(&json_number),
             Value::Number(Number::Float(1000000000000000000000.5f64))
+        );
+    }
+
+    #[test]
+    fn test_query_command() {
+        let variables = VariableSet::new();
+        let mut cache = BodyCache::new();
+        let mut commands = CommandResults::default();
+        commands.add(CommandResult {
+            name: CommandName::PreRequest,
+            ret_code: 2,
+            stdout: "hello\n".to_string(),
+            stderr: "oops\n".to_string(),
+        });
+        let options = QueryOptions {
+            commands: Some(&commands),
+            ..Default::default()
+        };
+        let query_command = |attribute: CommandAttribute| Query {
+            source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 30)),
+            value: QueryValue::Command {
+                space0: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 8), Pos::new(1, 9)),
+                },
+                name: Template::new(
+                    Some('"'),
+                    vec![TemplateElement::String {
+                        value: "pre-request".to_string(),
+                        source: "pre-request".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 9), Pos::new(1, 22)),
+                ),
+                space1: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 22), Pos::new(1, 23)),
+                },
+                attribute,
+            },
+        };
+
+        assert_eq!(
+            eval_query(
+                &query_command(CommandAttribute::RetCode),
+                &variables,
+                &[&http::hello_http_response()],
+                &mut cache,
+                &options
+            )
+            .unwrap()
+            .unwrap(),
+            Value::Number(Number::Integer(2))
+        );
+        assert_eq!(
+            eval_query(
+                &query_command(CommandAttribute::Stdout),
+                &variables,
+                &[&http::hello_http_response()],
+                &mut cache,
+                &options
+            )
+            .unwrap()
+            .unwrap(),
+            Value::String("hello\n".to_string())
+        );
+        assert_eq!(
+            eval_query(
+                &query_command(CommandAttribute::Stderr),
+                &variables,
+                &[&http::hello_http_response()],
+                &mut cache,
+                &options
+            )
+            .unwrap()
+            .unwrap(),
+            Value::String("oops\n".to_string())
+        );
+    }
+
+    #[test]
+    fn test_query_command_not_found() {
+        let variables = VariableSet::new();
+        let mut cache = BodyCache::new();
+        let query = Query {
+            source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 30)),
+            value: QueryValue::Command {
+                space0: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 8), Pos::new(1, 9)),
+                },
+                name: Template::new(
+                    Some('"'),
+                    vec![TemplateElement::String {
+                        value: "pre-request".to_string(),
+                        source: "pre-request".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 9), Pos::new(1, 22)),
+                ),
+                space1: Whitespace {
+                    value: String::from(" "),
+                    source_info: SourceInfo::new(Pos::new(1, 22), Pos::new(1, 23)),
+                },
+                attribute: CommandAttribute::RetCode,
+            },
+        };
+        let error = eval_query(
+            &query,
+            &variables,
+            &[&http::hello_http_response()],
+            &mut cache,
+            &QueryOptions::default(),
+        )
+        .err()
+        .unwrap();
+        assert_eq!(
+            error.kind,
+            RunnerErrorKind::CommandNotFound {
+                name: "pre-request".to_string()
+            }
         );
     }
 

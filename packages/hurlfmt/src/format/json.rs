@@ -18,7 +18,8 @@
 use base64::Engine;
 use base64::engine::general_purpose;
 use hurl_core::ast::{
-    Assert, Base64, Body, BooleanOption, Bytes, Capture, CertificateAttributeName, Comment, Cookie,
+    Assert, Base64, Body, BooleanOption, Bytes, Capture, CertificateAttributeName, Command, Comment,
+    Cookie,
     CountOption, Duration, DurationOption, Entry, EntryOption, File, FilenameParam, Filter,
     FilterValue, Hex, HurlFile, JsonListElement, JsonValue, JsonValueKind, KeyValue,
     MultilineString, MultilineStringKind, MultipartParam, NaturalOption, OptionKind, Placeholder,
@@ -94,6 +95,10 @@ impl ToJson for Request {
         if !self.options().is_empty() {
             let options = self.options().iter().map(|c| c.to_json()).collect();
             attributes.push(("options".to_string(), JValue::List(options)));
+        }
+        if !self.commands().is_empty() {
+            let commands = self.commands().iter().map(|c| c.to_json()).collect();
+            attributes.push(("commands".to_string(), JValue::List(commands)));
         }
         if let Some(body) = &self.body {
             attributes.push(("body".to_string(), body.to_json()));
@@ -308,6 +313,22 @@ impl ToJson for Cookie {
     }
 }
 
+impl ToJson for Command {
+    fn to_json(&self) -> JValue {
+        let attributes = vec![
+            (
+                "name".to_string(),
+                JValue::String(self.name.identifier().to_string()),
+            ),
+            (
+                "command".to_string(),
+                JValue::String(self.command.to_string()),
+            ),
+        ];
+        JValue::Object(attributes)
+    }
+}
+
 impl ToJson for EntryOption {
     fn to_json(&self) -> JValue {
         let value = match &self.kind {
@@ -499,6 +520,13 @@ fn query_value_attributes(query_value: &QueryValue) -> Vec<(String, JValue)> {
             ..
         } => {
             attributes.push(("expr".to_string(), field.to_json()));
+        }
+        QueryValue::Command { name, attribute, .. } => {
+            attributes.push(("name".to_string(), JValue::String(name.to_string())));
+            attributes.push((
+                "attribute".to_string(),
+                JValue::String(attribute.identifier().to_string()),
+            ));
         }
         _ => {}
     };

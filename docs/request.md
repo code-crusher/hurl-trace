@@ -429,6 +429,33 @@ Basic authentication allows per request authentication.
 If you want to add basic authentication to all the requests of a Hurl file
 you can use [`-u/--user` option].
 
+### Commands
+
+Optional commands to run before (`pre-request`) or after (`post-request`) the HTTP request.
+
+A command consists of a reserved name (`pre-request` or `post-request`), followed by a `:` and a shell command.
+The command section starts with `[Command]`.
+
+```hurl
+GET https://example.org/configure
+[Command]
+pre-request: ./reset-database.sh
+post-request: ./check-logs.sh
+HTTP 202
+[Asserts]
+command "pre-request" ret-code == 0
+command "post-request" stdout contains "Configured system correctly"
+```
+
+Commands are run by the system shell (`sh -c` on Unix, `cmd /C` on Windows), in the order they are declared, with the
+same variables as the request. A `pre-request` command is run just before the HTTP request is sent, a `post-request`
+command just after the last HTTP response has been received. A command returning a non-zero return code doesn't fail the
+entry by itself: the return code is available through the [command query] so it can be asserted.
+
+> Running commands is disabled by default: you must explicitly enable it with the [`--allow-commands` option] to run
+> a Hurl file containing a `[Command]` section. This is a security measure, as Hurl files may come from untrusted
+> sources.
+
 ### Body
 
 Optional HTTP body request.
@@ -758,6 +785,8 @@ File are relative to the input Hurl file, and cannot contain implicit parent dir
 [`-u/--user` option]: /docs/manual.md#user
 [Hurl unicode literals \u{20}]: /docs/hurl-file.md#special-characters-in-strings
 [Authorization]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Authorization
+[`--allow-commands` option]: /docs/manual.md#allow-commands
+[command query]: /docs/asserting-response.md#command-assert
 [`--location`]: /docs/manual.md#location
 [`--verbose`]: /docs/manual.md#verbose
 [`--insecure`]: /docs/manual.md#insecure

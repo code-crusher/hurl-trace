@@ -16,8 +16,8 @@
  *
  */
 use crate::ast::{
-    Assert, Capture, Cookie, FilenameParam, FilenameValue, MultipartParam, Section, SectionValue,
-    SourceInfo, Whitespace,
+    Assert, Capture, Command, CommandName, Cookie, FilenameParam, FilenameValue, MultipartParam,
+    Section, SectionValue, SourceInfo, Whitespace,
 };
 use crate::combinator::{optional, recover, zero_or_more};
 use crate::reader::{Pos, Reader};
@@ -61,6 +61,7 @@ fn request_section(reader: &mut Reader) -> ParseResult<Section> {
         "MultipartFormData" => section_value_multipart_form_data(reader, false)?,
         "Cookies" => section_value_cookies(reader)?,
         "Options" => section_value_options(reader)?,
+        "Command" => section_value_commands(reader)?,
         _ => {
             let kind = ParseErrorKind::RequestSectionName { name: name.clone() };
             let pos = Pos::new(start.pos.line, start.pos.column + 1);
@@ -161,6 +162,39 @@ fn section_value_asserts(reader: &mut Reader) -> ParseResult<SectionValue> {
 fn section_value_options(reader: &mut Reader) -> ParseResult<SectionValue> {
     let options = zero_or_more(option::parse, reader)?;
     Ok(SectionValue::Options(options))
+}
+
+fn section_value_commands(reader: &mut Reader) -> ParseResult<SectionValue> {
+    let commands = zero_or_more(command, reader)?;
+    Ok(SectionValue::Commands(commands))
+}
+
+fn command(reader: &mut Reader) -> ParseResult<Command> {
+    let line_terminators = optional_line_terminators(reader)?;
+    let space0 = zero_or_more_spaces(reader)?;
+    let start = reader.cursor();
+    let name = reader.read_while(|c| c.is_alphanumeric() || c == '-');
+    let space1 = zero_or_more_spaces(reader)?;
+    // A line without a colon is not a command: it marks the end of the section.
+    try_literal(":", reader)?;
+    let Some(name) = CommandName::parse(&name) else {
+        let kind = ParseErrorKind::Expecting {
+            value: "pre-request or post-request".to_string(),
+        };
+        return Err(ParseError::new(start.pos, false, kind));
+    };
+    let space2 = zero_or_more_spaces(reader)?;
+    let command = unquoted_template(reader)?;
+    let line_terminator0 = line_terminator(reader)?;
+    Ok(Command {
+        line_terminators,
+        space0,
+        name,
+        space1,
+        space2,
+        command,
+        line_terminator0,
+    })
 }
 
 fn cookie(reader: &mut Reader) -> ParseResult<Cookie> {
@@ -982,5 +1016,120 @@ mod tests {
             }
         );
         assert_eq!(reader.cursor().pos, Pos { line: 2, column: 1 });
+    }
+
+    #[test]
+    fn test_command_section() {
+        let mut reader =
+            Reader::new("[Command]\npre-request: ./setup.sh\npost-request: ./check.sh\nHTTP 200\n");
+
+        assert_eq!(
+            request_section(&mut reader).unwrap(),
+            Section {
+                line_terminators: vec![],
+                space0: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                },
+                line_terminator0: LineTerminator {
+                    space0: Whitespace {
+                        value: String::new(),
+                        source_info: SourceInfo::new(Pos::new(1, 10), Pos::new(1, 10)),
+                    },
+                    comment: None,
+                    newline: Whitespace {
+                        value: String::from("\n"),
+                        source_info: SourceInfo::new(Pos::new(1, 10), Pos::new(2, 1)),
+                    },
+                },
+                value: SectionValue::Commands(vec![
+                    Command {
+                        line_terminators: vec![],
+                        space0: Whitespace {
+                            value: String::new(),
+                            source_info: SourceInfo::new(Pos::new(2, 1), Pos::new(2, 1)),
+                        },
+                        name: CommandName::PreRequest,
+                        space1: Whitespace {
+                            value: String::new(),
+                            source_info: SourceInfo::new(Pos::new(2, 12), Pos::new(2, 12)),
+                        },
+                        space2: Whitespace {
+                            value: String::from(" "),
+                            source_info: SourceInfo::new(Pos::new(2, 13), Pos::new(2, 14)),
+                        },
+                        command: Template::new(
+                            None,
+                            vec![TemplateElement::String {
+                                value: "./setup.sh".to_string(),
+                                source: "./setup.sh".to_source(),
+                            }],
+                            SourceInfo::new(Pos::new(2, 14), Pos::new(2, 24)),
+                        ),
+                        line_terminator0: LineTerminator {
+                            space0: Whitespace {
+                                value: String::new(),
+                                source_info: SourceInfo::new(Pos::new(2, 24), Pos::new(2, 24)),
+                            },
+                            comment: None,
+                            newline: Whitespace {
+                                value: String::from("\n"),
+                                source_info: SourceInfo::new(Pos::new(2, 24), Pos::new(3, 1)),
+                            },
+                        },
+                    },
+                    Command {
+                        line_terminators: vec![],
+                        space0: Whitespace {
+                            value: String::new(),
+                            source_info: SourceInfo::new(Pos::new(3, 1), Pos::new(3, 1)),
+                        },
+                        name: CommandName::PostRequest,
+                        space1: Whitespace {
+                            value: String::new(),
+                            source_info: SourceInfo::new(Pos::new(3, 13), Pos::new(3, 13)),
+                        },
+                        space2: Whitespace {
+                            value: String::from(" "),
+                            source_info: SourceInfo::new(Pos::new(3, 14), Pos::new(3, 15)),
+                        },
+                        command: Template::new(
+                            None,
+                            vec![TemplateElement::String {
+                                value: "./check.sh".to_string(),
+                                source: "./check.sh".to_source(),
+                            }],
+                            SourceInfo::new(Pos::new(3, 15), Pos::new(3, 25)),
+                        ),
+                        line_terminator0: LineTerminator {
+                            space0: Whitespace {
+                                value: String::new(),
+                                source_info: SourceInfo::new(Pos::new(3, 25), Pos::new(3, 25)),
+                            },
+                            comment: None,
+                            newline: Whitespace {
+                                value: String::from("\n"),
+                                source_info: SourceInfo::new(Pos::new(3, 25), Pos::new(4, 1)),
+                            },
+                        },
+                    },
+                ]),
+                source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 10)),
+            }
+        );
+        assert_eq!(reader.cursor().pos, Pos { line: 4, column: 1 });
+    }
+
+    #[test]
+    fn test_command_section_with_unknown_command_name() {
+        let mut reader = Reader::new("[Command]\nunknown: ./setup.sh\n");
+        let error = request_section(&mut reader).err().unwrap();
+        assert!(!error.recoverable);
+        assert_eq!(
+            error.kind,
+            ParseErrorKind::Expecting {
+                value: "pre-request or post-request".to_string()
+            }
+        );
     }
 }

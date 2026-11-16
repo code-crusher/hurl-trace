@@ -162,6 +162,7 @@
             * [Multipart Form Data](#file-format-request-multipart-form-data)
             * [Cookies](#file-format-request-cookies)
             * [Basic Authentication](#file-format-request-basic-authentication)
+            * [Commands](#file-format-request-commands)
             * [Body](#file-format-request-body)
                 * [JSON body](#file-format-request-json-body)
                 * [XML body](#file-format-request-xml-body)
@@ -232,6 +233,7 @@
             * [URL assert](#file-format-asserting-response-url-assert)
             * [Redirects assert](#file-format-asserting-response-redirects-assert)
             * [IP address assert](#file-format-asserting-response-ip-address-assert)
+            * [Command assert](#file-format-asserting-response-command-assert)
             * [Variable assert](#file-format-asserting-response-variable-assert)
             * [Duration assert](#file-format-asserting-response-duration-assert)
             * [SSL certificate assert](#file-format-asserting-response-ssl-certificate-assert)
@@ -927,6 +929,7 @@ to configure Hurl, there are four sources from the lowest priority to highest (o
 
 | Option                                                                                                                                             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 |----------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <a href="#getting-started-manual-allow-commands" id="getting-started-manual-allow-commands"><code>--allow-commands</code></a>                      | Allow Hurl file to run shell commands declared in `[Command]` sections.<br><br>For security reasons, command execution is disabled by default: a Hurl file containing a `[Command]` section fails<br>with an error unless this option is set. Only enable it for Hurl files you trust.<br><br>Environment variables: HURL_ALLOW_COMMANDS<br>                                                                                                                                                                                        |
 | <a href="#getting-started-manual-continue-on-error" id="getting-started-manual-continue-on-error"><code>--continue-on-error</code></a>             | Continue executing requests to the end of the Hurl file even when an assert error occurs. By default, Hurl exits after an assert error in the HTTP response.<br><br>Note that this option does not affect the behavior with multiple input Hurl files.<br><br>All the input files are executed independently. The result of one file does not affect the execution of the other Hurl files.<br><br>Environment variables: HURL_CONTINUE_ON_ERROR<br><br>This is a cli-only option.<br>                                              |
 | <a href="#getting-started-manual-delay" id="getting-started-manual-delay"><code>--delay &lt;MILLISECONDS&gt;</code></a>                            | Sets delay before each request (aka sleep). The delay is not applied to requests that have been retried because of [`--retry`](#getting-started-manual-retry). See [`--retry-interval`](#getting-started-manual-retry-interval) to space retried requests.<br><br>You can specify time units in the delay expression. Set Hurl to use a delay of 2 seconds with `--delay 2s` or set it to 500 milliseconds with `--delay 500ms`. Supported time units: ms, s, m, h. No spaces allowed.<br><br>Environment variables: HURL_DELAY<br> |
 | <a href="#getting-started-manual-from-entry" id="getting-started-manual-from-entry"><code>--from-entry &lt;ENTRY_NUMBER&gt;</code></a>             | Execute Hurl file from ENTRY_NUMBER (starting at 1).<br><br>This is a cli-only option.<br>                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -3375,6 +3378,33 @@ Basic authentication allows per request authentication.
 If you want to add basic authentication to all the requests of a Hurl file
 you can use [`-u/--user` option](#getting-started-manual-user).
 
+#### Commands {#file-format-request-commands}
+
+Optional commands to run before (`pre-request`) or after (`post-request`) the HTTP request.
+
+A command consists of a reserved name (`pre-request` or `post-request`), followed by a `:` and a shell command.
+The command section starts with `[Command]`.
+
+```hurl
+GET https://example.org/configure
+[Command]
+pre-request: ./reset-database.sh
+post-request: ./check-logs.sh
+HTTP 202
+[Asserts]
+command "pre-request" ret-code == 0
+command "post-request" stdout contains "Configured system correctly"
+```
+
+Commands are run by the system shell (`sh -c` on Unix, `cmd /C` on Windows), in the order they are declared, with the
+same variables as the request. A `pre-request` command is run just before the HTTP request is sent, a `post-request`
+command just after the last HTTP response has been received. A command returning a non-zero return code doesn't fail the
+entry by itself: the return code is available through the [command query](#file-format-asserting-response-command-assert) so it can be asserted.
+
+> Running commands is disabled by default: you must explicitly enable it with the [`--allow-commands` option](#getting-started-manual-allow-commands) to run
+> a Hurl file containing a `[Command]` section. This is a security measure, as Hurl files may come from untrusted
+> sources.
+
 #### Body {#file-format-request-body}
 
 Optional HTTP body request.
@@ -5304,6 +5334,29 @@ ip not isIpv6
 ip == "172.16.45.87"
 ```
 
+#### Command assert {#file-format-asserting-response-command-assert}
+
+Check the result of a command declared in the [`[Command]` section](#file-format-request-commands) of the request. A command assert consists of the
+keyword `command`, followed by the command name and the attribute to check.
+
+The following attributes are supported: `ret-code` (the exit code as an integer), `stdout` and `stderr` (both strings).
+
+```hurl
+GET https://example.org/configure
+[Command]
+pre-request: ./reset-database.sh
+post-request: ./check-logs.sh
+HTTP 202
+[Asserts]
+command "pre-request" ret-code == 0
+command "post-request" stdout contains "Configured system correctly"
+command "post-request" stderr == ""
+```
+
+If no command has been run with the given name, the assert fails with a `Command not found` error.
+
+> Commands must be explicitly enabled with the [`--allow-commands` option](#getting-started-manual-allow-commands).
+
 #### Variable assert {#file-format-asserting-response-variable-assert}
 
 ```hurl
@@ -6171,7 +6224,8 @@ Short description:
 <span class="grammar-symbol">|</span><a href="#form-params-section">form-params-section</a><br>
 <span class="grammar-symbol">|</span><a href="#multipart-form-data-section">multipart-form-data-section</a><br>
 <span class="grammar-symbol">|</span><a href="#cookies-section">cookies-section</a><br>
-<span class="grammar-symbol">|</span><a href="#options-section">options-section</a></div></div>
+<span class="grammar-symbol">|</span><a href="#options-section">options-section</a><br>
+<span class="grammar-symbol">|</span><a href="#command-section">command-section</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="response-section">response-section</span><span class="grammar-usedby">(used by <a href="#response">response</a>)</span></div><div class="grammar-rule-expression">&nbsp;<a href="#captures-section">captures-section</a><br>
 <span class="grammar-symbol">|</span><a href="#asserts-section">asserts-section</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="query-string-params-section">query-string-params-section</span><span class="grammar-usedby">(used by <a href="#request-section">request-section</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
@@ -6198,6 +6252,11 @@ Short description:
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="options-section">options-section</span><span class="grammar-usedby">(used by <a href="#request-section">request-section</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
 <span class="grammar-literal">[Options]</span>&nbsp;<a href="#lt">lt</a><br>
 <a href="#option">option</a><span class="grammar-symbol">*</span></div></div>
+<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="command-section">command-section</span><span class="grammar-usedby">(used by <a href="#request-section">request-section</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
+<span class="grammar-literal">[Command]</span>&nbsp;<a href="#lt">lt</a><br>
+<a href="#command">command</a><span class="grammar-symbol">*</span></div></div>
+<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="command">command</span><span class="grammar-usedby">(used by <a href="#command-section">command-section</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
+<span class="grammar-symbol">(</span><span class="grammar-literal">pre-request</span><span class="grammar-symbol">|</span><span class="grammar-literal">post-request</span><span class="grammar-symbol">)</span>&nbsp;<span class="grammar-literal">:</span>&nbsp;<a href="#value-string">value-string</a>&nbsp;<a href="#lt">lt</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="key-value">key-value</span><span class="grammar-usedby">(used by <a href="#header">header</a>,&nbsp;<a href="#query-string-params-section">query-string-params-section</a>,&nbsp;<a href="#form-params-section">form-params-section</a>,&nbsp;<a href="#cookies-section">cookies-section</a>,&nbsp;<a href="#basic-auth-section">basic-auth-section</a>,&nbsp;<a href="#multipart-form-data-param">multipart-form-data-param</a>)</span></div><div class="grammar-rule-expression"><a href="#key-string">key-string</a>&nbsp;<span class="grammar-literal">:</span>&nbsp;<a href="#value-string">value-string</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="multipart-form-data-param">multipart-form-data-param</span><span class="grammar-usedby">(used by <a href="#multipart-form-data-section">multipart-form-data-section</a>)</span></div><div class="grammar-rule-expression"><a href="#filename-param">filename-param</a><span class="grammar-symbol">|</span><a href="#key-value">key-value</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="filename-param">filename-param</span><span class="grammar-usedby">(used by <a href="#multipart-form-data-param">multipart-form-data-param</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
@@ -6286,7 +6345,8 @@ Short description:
 <span class="grammar-symbol">|</span><a href="#duration-query">duration-query</a><br>
 <span class="grammar-symbol">|</span><a href="#bytes-query">bytes-query</a><br>
 <span class="grammar-symbol">|</span><a href="#sha256-query">sha256-query</a><br>
-<span class="grammar-symbol">|</span><a href="#md5-query">md5-query</a></div></div>
+<span class="grammar-symbol">|</span><a href="#md5-query">md5-query</a><br>
+<span class="grammar-symbol">|</span><a href="#command-query">command-query</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="status-query">status-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">status</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="version-query">version-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">version</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="url-query">url-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">url</span></div></div>
@@ -6303,6 +6363,7 @@ Short description:
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="sha256-query">sha256-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">sha256</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="md5-query">md5-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">md5</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="bytes-query">bytes-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">bytes</span></div></div>
+<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="command-query">command-query</span><span class="grammar-usedby">(used by <a href="#query">query</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">command</span>&nbsp;<a href="#sp">sp</a>&nbsp;<a href="#quoted-string">quoted-string</a>&nbsp;<a href="#sp">sp</a>&nbsp;<span class="grammar-symbol">(</span><span class="grammar-literal">ret-code</span><span class="grammar-symbol">|</span><span class="grammar-literal">stdout</span><span class="grammar-symbol">|</span><span class="grammar-literal">stderr</span><span class="grammar-symbol">)</span></div></div>
 </div><div class="grammar-ruleset"><h3 id="predicates">Predicates</h3><div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="predicate">predicate</span><span class="grammar-usedby">(used by <a href="#assert">assert</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-symbol">(</span><span class="grammar-literal">not</span>&nbsp;<a href="#sp">sp</a><span class="grammar-symbol">)</span><span class="grammar-symbol">?</span>&nbsp;<a href="#predicate-func">predicate-func</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="predicate-func">predicate-func</span><span class="grammar-usedby">(used by <a href="#predicate">predicate</a>)</span></div><div class="grammar-rule-expression">&nbsp;<a href="#equal-predicate">equal-predicate</a><br>
 <span class="grammar-symbol">|</span><a href="#boolean-predicate">boolean-predicate</a><br>

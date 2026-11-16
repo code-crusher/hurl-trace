@@ -50,6 +50,7 @@ impl Section {
             SectionValue::MultipartFormData(_, true) => "Multipart",
             SectionValue::MultipartFormData(_, false) => "MultipartFormData",
             SectionValue::Options(_) => "Options",
+            SectionValue::Commands(_) => "Command",
         }
     }
 }
@@ -65,6 +66,60 @@ pub enum SectionValue {
     Captures(Vec<Capture>),
     Asserts(Vec<Assert>),
     Options(Vec<EntryOption>),
+    Commands(Vec<Command>),
+}
+
+/// A command run by Hurl, either before or after the HTTP request of an entry.
+///
+/// Commands are declared in the `[Command]` section of a request, with the reserved names
+/// `pre-request` and `post-request`:
+///
+/// ```hurl
+/// GET https://example.org
+/// [Command]
+/// pre-request: ./setup.sh
+/// post-request: ./check.sh
+/// HTTP 200
+/// [Asserts]
+/// command "pre-request" ret-code == 0
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Command {
+    pub line_terminators: Vec<LineTerminator>,
+    pub space0: Whitespace,
+    pub name: CommandName,
+    pub space1: Whitespace,
+    pub space2: Whitespace,
+    pub command: Template,
+    pub line_terminator0: LineTerminator,
+}
+
+/// The position of a [`Command`] relative to the HTTP request of an entry.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CommandName {
+    /// The command is run before the HTTP request is sent.
+    PreRequest,
+    /// The command is run after the HTTP response has been received.
+    PostRequest,
+}
+
+impl CommandName {
+    /// Returns the Hurl string identifier of this command name.
+    pub fn identifier(&self) -> &'static str {
+        match self {
+            CommandName::PreRequest => "pre-request",
+            CommandName::PostRequest => "post-request",
+        }
+    }
+
+    /// Parses a command name from its Hurl string identifier.
+    pub fn parse(value: &str) -> Option<CommandName> {
+        match value {
+            "pre-request" => Some(CommandName::PreRequest),
+            "post-request" => Some(CommandName::PostRequest),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -178,6 +233,44 @@ pub enum QueryValue {
     },
     Ip,
     Redirects,
+    Command {
+        space0: Whitespace,
+        name: Template,
+        space1: Whitespace,
+        attribute: CommandAttribute,
+    },
+}
+
+/// An attribute of the result of a command, used by a command query.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CommandAttribute {
+    /// The exit code of the command.
+    RetCode,
+    /// The standard output of the command.
+    Stdout,
+    /// The standard error of the command.
+    Stderr,
+}
+
+impl CommandAttribute {
+    /// Returns the Hurl string identifier of this command attribute.
+    pub fn identifier(&self) -> &'static str {
+        match self {
+            CommandAttribute::RetCode => "ret-code",
+            CommandAttribute::Stdout => "stdout",
+            CommandAttribute::Stderr => "stderr",
+        }
+    }
+
+    /// Parses a command attribute from its Hurl string identifier.
+    pub fn parse(value: &str) -> Option<CommandAttribute> {
+        match value {
+            "ret-code" => Some(CommandAttribute::RetCode),
+            "stdout" => Some(CommandAttribute::Stdout),
+            "stderr" => Some(CommandAttribute::Stderr),
+            _ => None,
+        }
+    }
 }
 
 impl QueryValue {
@@ -202,6 +295,7 @@ impl QueryValue {
             QueryValue::Certificate { .. } => "certificate",
             QueryValue::Ip => "ip",
             QueryValue::Redirects => "redirects",
+            QueryValue::Command { .. } => "command",
         }
     }
 }

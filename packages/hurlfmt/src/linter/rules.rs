@@ -16,12 +16,12 @@
  *
  */
 use hurl_core::ast::{
-    Assert, Base64, Body, Bytes, Capture, Comment, Cookie, CookieAttribute, CookieAttributeName,
-    CookiePath, DurationOption, Entry, EntryOption, File, FilenameParam, Filter, FilterValue,
-    GraphQl, Hex, HurlFile, KeyValue, LineTerminator, MultilineString, MultilineStringAttribute,
-    MultilineStringKind, MultipartParam, OptionKind, Predicate, PredicateFunc, PredicateFuncValue,
-    PredicateValue, Query, QueryValue, RegexValue, Request, Response, Section, SectionValue,
-    SourceInfo, Template, VariableDefinition, Whitespace,
+    Assert, Base64, Body, Bytes, Capture, Command, Comment, Cookie, CookieAttribute,
+    CookieAttributeName, CookiePath, DurationOption, Entry, EntryOption, File, FilenameParam,
+    Filter, FilterValue, GraphQl, Hex, HurlFile, KeyValue, LineTerminator, MultilineString,
+    MultilineStringAttribute, MultilineStringKind, MultipartParam, OptionKind, Predicate,
+    PredicateFunc, PredicateFuncValue, PredicateValue, Query, QueryValue, RegexValue, Request,
+    Response, Section, SectionValue, SourceInfo, Template, VariableDefinition, Whitespace,
 };
 use hurl_core::reader::Pos;
 use hurl_core::typing::{Duration, DurationUnit};
@@ -134,6 +134,9 @@ fn lint_section_value(section_value: &SectionValue) -> SectionValue {
         SectionValue::Options(options) => {
             SectionValue::Options(options.iter().map(lint_entry_option).collect())
         }
+        SectionValue::Commands(commands) => {
+            SectionValue::Commands(commands.iter().map(lint_command).collect())
+        }
     }
 }
 
@@ -146,6 +149,7 @@ fn section_value_index(section_value: SectionValue) -> u32 {
         SectionValue::FormParams(_, _) => 3,
         SectionValue::MultipartFormData(_, _) => 4,
         SectionValue::Cookies(_) => 5,
+        SectionValue::Commands(_) => 6,
         // Response sections
         SectionValue::Captures(_) => 0,
         SectionValue::Asserts(_) => 1,
@@ -253,6 +257,14 @@ fn lint_query_value(query_value: &QueryValue) -> QueryValue {
         },
         QueryValue::Ip => QueryValue::Ip,
         QueryValue::Redirects => QueryValue::Redirects,
+        QueryValue::Command {
+            name, attribute, ..
+        } => QueryValue::Command {
+            space0: one_whitespace(),
+            name: name.clone(),
+            space1: one_whitespace(),
+            attribute: *attribute,
+        },
     }
 }
 
@@ -449,6 +461,18 @@ fn lint_graphql(graphql: &GraphQl) -> GraphQl {
 
 fn lint_cookie(cookie: &Cookie) -> Cookie {
     cookie.clone()
+}
+
+fn lint_command(command: &Command) -> Command {
+    Command {
+        line_terminators: command.line_terminators.clone(),
+        space0: empty_whitespace(),
+        name: command.name,
+        space1: empty_whitespace(),
+        space2: one_whitespace(),
+        command: command.command.clone(),
+        line_terminator0: command.line_terminator0.clone(),
+    }
 }
 
 fn lint_body(body: &Body) -> Body {

@@ -117,6 +117,7 @@ fn parse_option(reader: &mut Reader, options: &mut CliOptions) -> Result<(), Con
     let option_name =
         reader.read_while(|c: char| c.is_alphanumeric() || c == '-' || c == '_' || c == '.');
     match option_name.as_str() {
+        "allow-commands" => parse_option_allow_commands(reader, options),
         "color" => parse_option_color(reader, options),
         "compressed" => parse_option_compressed(reader, options),
         "connect-timeout" => parse_option_connect_timeout(reader, options),
@@ -411,6 +412,15 @@ fn parse_option_max_time(
     options.timeout = duration::duration_from_str(&value, DurationUnit::Second).map_err(|_| {
         ConfigFileError::new(value_pos, "Option --max-time has an invalid duration")
     })?;
+    Ok(())
+}
+
+fn parse_option_allow_commands(
+    reader: &mut Reader,
+    options: &mut CliOptions,
+) -> Result<(), ConfigFileError> {
+    expect_no_value(reader)?;
+    options.allow_commands = true;
     Ok(())
 }
 

@@ -39,6 +39,7 @@ mod assert;
 mod body;
 mod cache;
 mod capture;
+mod command;
 mod entry;
 mod error;
 mod event;

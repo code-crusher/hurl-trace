@@ -16,7 +16,7 @@
  *
  */
 use hurl_core::ast::{
-    Assert, Capture, Entry, FilterValue, PredicateFuncValue, Response, SourceInfo,
+    Assert, Capture, CommandName, Entry, FilterValue, PredicateFuncValue, Response, SourceInfo,
 };
 use hurl_core::types::Index;
 
@@ -26,6 +26,7 @@ use crate::util::logger::{Logger, Verbosity};
 use crate::util::term::WriteMode;
 
 use super::cache::BodyCache;
+use super::command::{self, CommandResults};
 use super::error::{RunnerError, RunnerErrorKind};
 use super::query::QueryOptions;
 use super::request;
@@ -115,6 +116,36 @@ pub fn run(
         log_request(http_client, &curl_cmd, &http_request, logger);
     }
 
+    // Run the `pre-request` commands, before the HTTP request.
+    let mut commands = CommandResults::default();
+    let request_commands = entry.request.commands();
+    if !request_commands.is_empty() && !runner_options.allow_commands {
+        let command_source_info = request_commands.first().unwrap().command.source_info;
+        let error =
+            RunnerError::new(command_source_info, RunnerErrorKind::CommandsNotAllowed, false);
+        return EntryResult {
+            entry_index,
+            source_info,
+            errors: vec![error],
+            compressed,
+            curl_cmd,
+            ..Default::default()
+        };
+    }
+    match command::eval_commands(request_commands, CommandName::PreRequest, variables) {
+        Ok(results) => results.iter().for_each(|r| commands.add(r.clone())),
+        Err(error) => {
+            return EntryResult {
+                entry_index,
+                source_info,
+                errors: vec![error],
+                compressed,
+                curl_cmd,
+                ..Default::default()
+            };
+        }
+    }
+
     // Run the HTTP requests (optionally follow redirection)
     let calls = match http_client.execute_with_redirect(&http_request, &client_options, logger) {
         Ok(calls) => calls,
@@ -139,6 +170,22 @@ pub fn run(
     let responses = calls.iter().map(|c| &c.response).collect::<Vec<_>>();
     let http_response = responses.last().unwrap();
 
+    // Run the `post-request` commands, after the HTTP response has been received.
+    match command::eval_commands(request_commands, CommandName::PostRequest, variables) {
+        Ok(results) => results.iter().for_each(|r| commands.add(r.clone())),
+        Err(error) => {
+            return EntryResult {
+                entry_index,
+                source_info,
+                calls,
+                errors: vec![error],
+                compressed,
+                curl_cmd,
+                ..Default::default()
+            };
+        }
+    }
+
     // `transfer_duration` represent the network time of calls, not including assert processing.
     let transfer_duration = calls.iter().map(|call| call.timings.total).sum();
 
@@ -150,6 +197,7 @@ pub fn run(
     let mut asserts = vec![];
     let query_options = QueryOptions {
         use_jsonpath_coercion: runner_options.use_jsonpath_coercion,
+        commands: Some(&commands),
     };
 
     if !runner_options.no_assert

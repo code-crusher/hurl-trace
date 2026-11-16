@@ -20,7 +20,8 @@ Register-ArgumentCompleter -Native -CommandName 'hurl' -ScriptBlock {
 
     $completions = @(switch ($command) {
         'hurl'
-         {[CompletionResult]::new('--aws-sigv4', 'aws-sigv4', [CompletionResultType]::ParameterName, 'Use AWS V4 signature authentication in the transfer')
+         {[CompletionResult]::new('--allow-commands', 'allow-commands', [CompletionResultType]::ParameterName, 'Allow Hurl file to run shell commands declared in [Command] sections')
+            [CompletionResult]::new('--aws-sigv4', 'aws-sigv4', [CompletionResultType]::ParameterName, 'Use AWS V4 signature authentication in the transfer')
             [CompletionResult]::new('--cacert', 'cacert', [CompletionResultType]::ParameterName, 'CA certificate to verify peer against (PEM format)')
             [CompletionResult]::new('--cert', 'cert', [CompletionResultType]::ParameterName, 'Client certificate file and password')
             [CompletionResult]::new('--key', 'key', [CompletionResultType]::ParameterName, 'Private key file name')

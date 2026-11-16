@@ -1,3 +1,4 @@
+complete -c hurl -l allow-commands -d 'Allow Hurl file to run shell commands declared in [Command] sections'
 complete -c hurl -l aws-sigv4 -d 'Use AWS V4 signature authentication in the transfer'
 complete -c hurl -l cacert -d 'CA certificate to verify peer against (PEM format)'
 complete -c hurl -l cert -d 'Client certificate file and password'
