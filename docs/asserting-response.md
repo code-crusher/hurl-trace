@@ -396,7 +396,7 @@ Predicates consist of a predicate function and a predicate value. Predicate func
 | __`startsWith`__ | Query starts with the predicate value<br>Value is string or a binary content                                                                                                                                                | `jsonpath "$.movie" startsWith "The"`<br><br>`bytes startsWith hex,efbbbf;`                                        |
 | __`endsWith`__   | Query ends with the predicate value<br>Value is string or a binary content                                                                                                                                                  | `jsonpath "$.movie" endsWith "Back"`<br><br>`bytes endsWith hex,ab23456;`                                          |
 | __`contains`__   | If query returns a collection of string or numbers, query collection includes the predicate value (string or number)<br>If query returns a string or a binary content, query contains the predicate value (string or bytes) | `jsonpath "$.movie" contains "Empire"`<br><br>`bytes contains hex,beef;`<br><br>`jsonpath "$.numbers" contains 42` |
-| __`matches`__    | Part of the query string matches the regex pattern described by the predicate value (see [regex syntax](https://docs.rs/regex/latest/regex/#syntax))                                                                        | `jsonpath "$.release" matches "\\d{4}"`<br><br>`jsonpath "$.release" matches /\d{4}/`                              |
+| __`matches`__    | Part of the query string matches the regex pattern described by the predicate value (see [regex syntax](https://docs.rs/regex/latest/regex/#syntax)). If the query returns a collection of strings, at least one item must match the regex | `jsonpath "$.release" matches "\\d{4}"`<br><br>`jsonpath "$.release" matches /\d{4}/`                              |
 | __`exists`__     | Query returns a value                                                                                                                                                                                                       | `jsonpath "$.book" exists`                                                                                         |
 | __`isBoolean`__  | Query returns a boolean                                                                                                                                                                                                     | `jsonpath "$.succeeded" isBoolean`                                                                                 |
 | __`isEmpty`__    | Query returns an empty collection (list, object)                                                                                                                                                                            | `jsonpath "$.movies" isEmpty`                                                                                      |
@@ -460,8 +460,9 @@ In this case, the XPath query `string(//article/@data-visible)` returns a string
 string.
 
 The predicate function `==` can be used with string, numbers or booleans; `startWith` and `contains` can only
-be used with strings and bytes, while `matches` only works on string. If a query returns a number, using a `matches` 
-predicate will cause a runner error.
+be used with strings and bytes, while `matches` only works on strings (or a collection of strings, in which case
+at least one item must match the regex). If a query returns a number, using a `matches` predicate will cause a
+runner error.
 
 ```hurl
 # A really well tested web page...
@@ -514,8 +515,17 @@ header "Location" contains "www.example.net"
 header "Last-Modified" matches /\d{2} [a-z-A-Z]{3} \d{4}/
 ```
 
-If there are multiple headers with the same name, the header assert returns a collection, so `count`, `contains` can be
-used in this case to test the header list.
+If there are multiple headers with the same name, the header assert returns a collection, so `count`, `contains` and
+`matches` can be used in this case to test the header list. With `matches`, the assert succeeds as soon as one header
+value matches the regex, which is handy to check a header among many (for instance a specific cookie in a response
+with several `Set-Cookie` headers):
+
+```hurl
+GET https://example.org
+HTTP 200
+[Asserts]
+header "Set-Cookie" matches /(?i)xsrf/
+```
 
 Let's say we have this request and response:
 

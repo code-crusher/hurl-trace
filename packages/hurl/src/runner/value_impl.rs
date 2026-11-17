@@ -216,6 +216,9 @@ impl Value {
 
     /// Returns `true` if and only if there is a match for the regex anywhere in the value, otherwise `false`.
     ///
+    /// For a list, the value matches if at least one of its items matches the regex, consistent with
+    /// [`Value::contains`] on collections.
+    ///
     /// Returns a [`EvalError::Type`] if the type of the value is not supported.
     ///
     /// Returns an [`EvalError::InvalidRegex`] if the String is not a valid Regex.
@@ -232,6 +235,17 @@ impl Value {
         };
         match self {
             Value::String(value) => Ok(regex.is_match(value.as_str())),
+            Value::List(values) => {
+                let mut matched = false;
+                for value in values {
+                    // `matches` only works on strings, so a list of non-strings is a type error.
+                    let Value::String(value) = value else {
+                        return Err(EvalError::Type);
+                    };
+                    matched |= regex.is_match(value.as_str());
+                }
+                Ok(matched)
+            }
             _ => Err(EvalError::Type),
         }
     }
@@ -415,5 +429,45 @@ mod tests {
 
         let regex5 = Value::Bool(true);
         assert_eq!(value.is_match(&regex5).unwrap_err(), EvalError::Type);
+    }
+
+    #[test]
+    fn test_is_match_list() {
+        let value = Value::List(vec![
+            Value::String("XSRF-TOKEN=abc".to_string()),
+            Value::String("session=def".to_string()),
+        ]);
+
+        let regex1 = Value::String("(?i)xsrf".to_string());
+        assert!(value.is_match(&regex1).unwrap());
+
+        let regex2 = Value::Regex(regex::Regex::new("(?i)xsrf").unwrap());
+        assert!(value.is_match(&regex2).unwrap());
+
+        let regex3 = Value::String("(?i)csrf".to_string());
+        assert!(!value.is_match(&regex3).unwrap());
+
+        // An empty list has no item matching the regex.
+        assert!(
+            !Value::List(vec![])
+                .is_match(&Value::String("xsrf".to_string()))
+                .unwrap()
+        );
+
+        // An invalid regex is reported even with a list input.
+        assert_eq!(
+            value
+                .is_match(&Value::String("?xsrf".to_string()))
+                .unwrap_err(),
+            EvalError::InvalidRegex
+        );
+
+        // `matches` only works on strings, so a list of non-strings is a type error.
+        assert_eq!(
+            Value::List(vec![Value::Number(Number::Integer(1))])
+                .is_match(&Value::String("1".to_string()))
+                .unwrap_err(),
+            EvalError::Type
+        );
     }
 }
