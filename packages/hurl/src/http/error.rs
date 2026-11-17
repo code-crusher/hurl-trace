@@ -115,9 +115,10 @@ impl HttpError {
             } => format!("Option {option} requires libcurl version {minimum_version} or higher"),
             HttpError::NoPrimaryIp => "No primary IP found in response".to_string(),
             HttpError::TooManyRedirect => "too many redirect".to_string(),
-            HttpError::UnsupportedHttpVersion(version) => {
-                format!("{version} is not supported, check --version").to_string()
-            }
+            HttpError::UnsupportedHttpVersion(version) => format!(
+                "libcurl does not support {version}, execute `hurl --version`, then check the \
+                 `libcurl` version and `Features (libcurl)` to list available features"
+            ),
             HttpError::UnsupportedContentEncoding { description } => {
                 format!("compression {description} is not supported").to_string()
             }

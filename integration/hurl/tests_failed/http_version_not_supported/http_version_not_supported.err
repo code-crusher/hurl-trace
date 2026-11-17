@@ -2,6 +2,6 @@ error: Unsupported HTTP version
   --> tests_failed/http_version_not_supported/http_version_not_supported.hurl:3:5
    |
  3 | GET http://localhost:8000/foo
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^ HTTP/3 is not supported, check --version
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^ libcurl does not support HTTP/3, execute `hurl --version`, then check the `libcurl` version and `Features (libcurl)` to list available features
    |
 

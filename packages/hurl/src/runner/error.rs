@@ -517,6 +517,33 @@ mod tests {
     }
 
     #[test]
+    fn test_error_unsupported_http_version() {
+        let content = "GET http://localhost:8080";
+        let filename = "test.hurl";
+        let kind = RunnerErrorKind::Http(HttpError::UnsupportedHttpVersion(
+            crate::http::RequestedHttpVersion::Http2,
+        ));
+        let error_source_info = SourceInfo::new(Pos::new(1, 5), Pos::new(1, 26));
+        let entry_source_info = SourceInfo::new(Pos::new(1, 1), Pos::new(1, 26));
+        let error = RunnerError::new(error_source_info, kind, true);
+
+        assert_eq!(
+            error.render(
+                filename,
+                content,
+                Some(entry_source_info),
+                OutputFormat::Terminal(false)
+            ),
+            r#"Unsupported HTTP version
+  --> test.hurl:1:5
+   |
+ 1 | GET http://localhost:8080
+   |     ^^^^^^^^^^^^^^^^^^^^^ libcurl does not support HTTP/2, execute `hurl --version`, then check the `libcurl` version and `Features (libcurl)` to list available features
+   |"#
+        );
+    }
+
+    #[test]
     fn test_assert_error_status() {
         // For the crate colored to output ANSI escape code in test environment.
         hurl_core::text::init_crate_colored();
