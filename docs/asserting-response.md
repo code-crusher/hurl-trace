@@ -476,6 +476,34 @@ xpath "//h2" count == 13
 xpath "string(//article/@data-id)" startsWith "electric"
 ```
 
+### Assert description
+
+An inline comment can be added at the end of an explicit assert. It is used as a description of the assert and is
+displayed with the failure details when the assert fails, making the report easier to understand.
+
+```hurl
+POST {{BASE_URL}}/userReads
+HTTP 200
+[Asserts]
+jsonpath "$.data.dailyIncrement" == 0  # If initial date is one day before end date, daily increment should be 0
+```
+
+When the assert fails, the description is added to the error output:
+
+```shell
+$ hurl user-reads.hurl
+error: Assert failure
+  --> user-reads.hurl:3:0
+   |
+   | POST {{BASE_URL}}/userReads
+   | ...
+ 3 | jsonpath "$.data.dailyIncrement" == 0  # If initial date is one day before end date, daily increment should be 0
+   |   actual:   float <6.520000457763672>
+   |   expected: integer <0>
+   |   description: If initial date is one day before end date, daily increment should be 0
+   |
+```
+
 ### Status assert
 
 Check the received HTTP response status code. Status assert consists of the keyword `status` followed by a predicate
@@ -1056,6 +1084,7 @@ certificate "Value" startsWith "-----BEGIN CERTIFICATE-----"
 [SHA-256]: https://en.wikipedia.org/wiki/SHA-2
 [`--location` option]: /docs/manual.md#location
 [multiline string body]: #multiline-string-body
+[Assert description]: /docs/asserting-response.md#assert-description
 [filters]: /docs/filters.md
 [`decode` filter]: /docs/filters.md#decode
 [headers implicit asserts]: #headers

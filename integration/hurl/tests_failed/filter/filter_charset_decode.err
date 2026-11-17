@@ -24,5 +24,6 @@ error: Assert failure
  8 | bytes charsetDecode "iso-8859-1" == "café"   # value can be decoded but to an invalid string cafÃ©
    |   actual:   string <cafÃ©>
    |   expected: string <café>
+   |   description: value can be decoded but to an invalid string cafÃ©
    |
 

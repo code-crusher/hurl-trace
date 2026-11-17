@@ -173,6 +173,9 @@ pub enum AssertResult {
         actual: Result<Option<Value>, RunnerError>,
         source_info: SourceInfo,
         predicate_result: Option<Result<(), RunnerError>>,
+        /// Optional description of the assert, taken from the inline comment at the end of
+        /// the assert line.
+        description: Option<String>,
     },
 }
 

@@ -25,7 +25,7 @@ use hurl_core::text::{Style, StyledString};
 
 use crate::http::HttpError;
 
-use super::assert::diff::DiffHunk;
+use crate::runner::assert::diff::DiffHunk;
 
 /// Represents a single instance of a runtime error, usually triggered by running a
 /// [`hurl_core::ast::Entry`]. Running a Hurl content (see [`crate::runner::run`]) returns a list of
@@ -46,6 +46,20 @@ impl RunnerError {
             assert,
         }
     }
+
+    /// Returns this error with an optional `description` attached to its [`RunnerErrorKind::AssertFailure`]
+    /// kind. Other error kinds are returned unchanged.
+    pub fn with_assert_description(mut self, description: Option<String>) -> RunnerError {
+        if let Some(description) = description
+            && let RunnerErrorKind::AssertFailure {
+                description: none @ None,
+                ..
+            } = &mut self.kind
+        {
+            *none = Some(description);
+        }
+        self
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,6 +76,9 @@ pub enum RunnerErrorKind {
         actual: String,
         expected: String,
         type_mismatch: bool,
+        /// Optional description of the assert, taken from the inline comment at the end
+        /// of the assert line.
+        description: Option<String>,
     },
     AssertHeaderValueError {
         actual: String,
@@ -193,6 +210,43 @@ impl DisplaySourceError for RunnerError {
     }
 
     fn fixme(&self, content: &[&str]) -> StyledString {
+        self.fixme_kind(content)
+    }
+
+    fn message(&self, content: &[&str]) -> StyledString {
+        let mut text = StyledString::new();
+        if let RunnerErrorKind::AssertBodyDiffError {
+            hunks,
+            body_source_info,
+        } = &self.kind
+        {
+            let loc_max_width = max(content.len().to_string().len(), 2);
+
+            // Only process first hunk for the time-being
+            // TODO: Process all the hunks
+            for hunk in &hunks[..1] {
+                text.push("\n");
+                text.append(hunk_string(
+                    hunk,
+                    body_source_info.start.line,
+                    content,
+                    loc_max_width,
+                ));
+            }
+            text
+        } else {
+            error::add_source_line(&mut text, content, self.source_info().start.line);
+            text.append(self.fixme(content));
+
+            let error_line = self.source_info().start.line;
+            error::add_line_info_prefix(&text, content, error_line)
+        }
+    }
+}
+
+impl RunnerError {
+    /// Returns the error message for this error kind.
+    fn fixme_kind(&self, content: &[&str]) -> StyledString {
         match &self.kind {
             // FIXME: this variant can not be called because message doesn't call it
             // contrary to the default implementation.
@@ -212,14 +266,18 @@ impl DisplaySourceError for RunnerError {
                 actual,
                 expected,
                 type_mismatch,
-                ..
+                description,
             } => {
                 let additional = if *type_mismatch {
                     "\n   >>> types between actual and expected are not consistent"
                 } else {
                     ""
                 };
-                let message = format!("   actual:   {actual}\n   expected: {expected}{additional}");
+                let mut message =
+                    format!("   actual:   {actual}\n   expected: {expected}{additional}");
+                if let Some(description) = description {
+                    message.push_str(&format!("\n   description: {description}"));
+                }
                 color_red_multiline_string(&message)
             }
             RunnerErrorKind::AssertHeaderValueError { actual } => {
@@ -389,36 +447,6 @@ impl DisplaySourceError for RunnerError {
                 let message = error::add_carets(message, self.source_info, content);
                 color_red_multiline_string(&message)
             }
-        }
-    }
-
-    fn message(&self, content: &[&str]) -> StyledString {
-        let mut text = StyledString::new();
-        if let RunnerErrorKind::AssertBodyDiffError {
-            hunks,
-            body_source_info,
-        } = &self.kind
-        {
-            let loc_max_width = max(content.len().to_string().len(), 2);
-
-            // Only process first hunk for the time-being
-            // TODO: Process all the hunks
-            for hunk in &hunks[..1] {
-                text.push("\n");
-                text.append(hunk_string(
-                    hunk,
-                    body_source_info.start.line,
-                    content,
-                    loc_max_width,
-                ));
-            }
-            text
-        } else {
-            error::add_source_line(&mut text, content, self.source_info().start.line);
-            text.append(self.fixme(content));
-
-            let error_line = self.source_info().start.line;
-            error::add_line_info_prefix(&text, content, error_line)
         }
     }
 }
@@ -610,6 +638,7 @@ jsonpath "$.count" >= 5
                 actual: "integer <2>".to_string(),
                 expected: "greater than integer <5>".to_string(),
                 type_mismatch: false,
+                description: None,
             },
             assert: true,
         };
@@ -638,6 +667,60 @@ jsonpath "$.count" >= 5
  4 | jsonpath "$.count" >= 5
    |   actual:   integer <2>
    |   expected: greater than integer <5>
+   |"#
+        );
+    }
+
+    #[test]
+    fn test_assert_error_with_description() {
+        // An inline comment on an assert line is used as an additional description in the
+        // error output (#3791).
+        let content = r#"GET http://api
+HTTP/1.0 200
+[Asserts]
+jsonpath "$.count" >= 5  # Count must be at least 5
+"#;
+        let lines = content.lines().collect::<Vec<_>>();
+        let filename = "test.hurl";
+        let error_source_info = SourceInfo::new(Pos::new(4, 0), Pos::new(4, 0));
+        let entry_source_info = SourceInfo::new(Pos::new(1, 1), Pos::new(1, 14));
+        let error = RunnerError::new(
+            error_source_info,
+            RunnerErrorKind::AssertFailure {
+                actual: "integer <2>".to_string(),
+                expected: "greater than integer <5>".to_string(),
+                type_mismatch: false,
+                description: Some("Count must be at least 5".to_string()),
+            },
+            true,
+        );
+
+        assert_eq!(
+            error.message(&lines).to_string(Format::Plain),
+            r#"
+ 4 | jsonpath "$.count" >= 5  # Count must be at least 5
+   |   actual:   integer <2>
+   |   expected: greater than integer <5>
+   |   description: Count must be at least 5
+   |"#
+        );
+
+        assert_eq!(
+            error.render(
+                filename,
+                content,
+                Some(entry_source_info),
+                OutputFormat::Terminal(false)
+            ),
+            r#"Assert failure
+  --> test.hurl:4:0
+   |
+   | GET http://api
+   | ...
+ 4 | jsonpath "$.count" >= 5  # Count must be at least 5
+   |   actual:   integer <2>
+   |   expected: greater than integer <5>
+   |   description: Count must be at least 5
    |"#
         );
     }

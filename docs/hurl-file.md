@@ -25,6 +25,9 @@ header "Location" exists
 header "Location" contains "login"  # Check that we are redirected to the login page
 ```
 
+An inline comment at the end of an explicit assert is used as a description of this assert: it is displayed in the
+error output when the assert fails. See [Assert description] for more details.
+
 ## Special Characters in Strings
 
 String can include the following special characters:

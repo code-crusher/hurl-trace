@@ -482,9 +482,11 @@ mod tests {
                         actual: "integer <2>".to_string(),
                         expected: "integer <3>".to_string(),
                         type_mismatch: false,
+                        description: None,
                     },
                     true
                 ))),
+                description: None,
             },]
         );
     }

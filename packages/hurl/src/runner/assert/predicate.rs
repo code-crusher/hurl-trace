@@ -79,6 +79,7 @@ pub fn eval_predicate(
             actual: result.actual,
             expected,
             type_mismatch: true,
+            description: None,
         };
         Err(RunnerError::new(source_info, kind, true))
     } else if predicate.not == result.success {
@@ -88,6 +89,7 @@ pub fn eval_predicate(
             actual: result.actual,
             expected,
             type_mismatch: false,
+            description: None,
         };
         Err(RunnerError::new(source_info, kind, true))
     } else {
@@ -884,6 +886,7 @@ mod tests {
                 actual: "integer <10>".to_string(),
                 expected: "not integer <10>".to_string(),
                 type_mismatch: false,
+                description: None,
             }
         );
         assert_eq!(
@@ -940,6 +943,7 @@ mod tests {
                 actual: "integer <1>".to_string(),
                 expected: "not integer <1>".to_string(),
                 type_mismatch: false,
+                description: None,
             }
         );
 
@@ -951,6 +955,7 @@ mod tests {
                 actual: "none".to_string(),
                 expected: "not integer <1>".to_string(),
                 type_mismatch: false,
+                description: None,
             }
         );
 
@@ -984,6 +989,7 @@ mod tests {
                 actual: "integer <2>".to_string(),
                 expected: "integer <1>".to_string(),
                 type_mismatch: false,
+                description: None,
             }
         );
     }
@@ -1469,6 +1475,7 @@ mod tests {
                 actual: "integer <1>".to_string(),
                 expected: "not starts with string <toto>".to_string(),
                 type_mismatch: true,
+                description: None,
             }
         );
     }
@@ -1525,6 +1532,7 @@ mod tests {
                 actual: "none".to_string(),
                 expected: "null".to_string(),
                 type_mismatch: false,
+                description: None,
             }
         );
 

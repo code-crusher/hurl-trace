@@ -76,6 +76,7 @@ error: Assert failure
 11 | jsonpath "$.count" not != 0  # double negation equivalent to == 0
    |   actual:   integer <1>
    |   expected: integer <0>
+   |   description: double negation equivalent to == 0
    |
 
 error: Assert failure
@@ -86,6 +87,7 @@ error: Assert failure
 12 | jsonpath "$.count" not != "Hello" # double negation equivalent to == "Hello"
    |   actual:   integer <1>
    |   expected: string <Hello>
+   |   description: double negation equivalent to == "Hello"
    |
 
 error: Assert failure

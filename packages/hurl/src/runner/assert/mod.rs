@@ -123,11 +123,16 @@ impl AssertResult {
                     }
                 },
             },
-            AssertResult::Explicit { actual: Err(e), .. } => Some(e.clone()),
+            AssertResult::Explicit {
+                actual: Err(e),
+                description,
+                ..
+            } => Some(e.clone().with_assert_description(description.clone())),
             AssertResult::Explicit {
                 predicate_result: Some(Err(e)),
+                description,
                 ..
-            } => Some(e.clone()),
+            } => Some(e.clone().with_assert_description(description.clone())),
             _ => None,
         }
     }
@@ -205,10 +210,18 @@ pub fn eval_explicit_assert(
         )),
     };
 
+    let description = assert
+        .line_terminator0
+        .comment
+        .as_ref()
+        .map(|comment| comment.value.trim().to_string())
+        .filter(|description| !description.is_empty());
+
     AssertResult::Explicit {
         actual,
         source_info,
         predicate_result,
+        description,
     }
 }
 
@@ -217,8 +230,8 @@ pub mod tests {
     use std::path::Path;
 
     use hurl_core::ast::{
-        Filter, FilterValue, I64, LineTerminator, Predicate, PredicateFunc, PredicateFuncValue,
-        PredicateValue, SourceInfo, Whitespace,
+        Comment, Filter, FilterValue, I64, LineTerminator, Predicate, PredicateFunc,
+        PredicateFuncValue, PredicateValue, SourceInfo, Whitespace,
     };
     use hurl_core::reader::Pos;
     use hurl_core::types::ToSource;
@@ -273,6 +286,41 @@ pub mod tests {
     fn test_invalid_xpath() {}
 
     #[test]
+    fn test_eval_assert_description() {
+        // The inline comment of an assert line is used as its description (#3791).
+        let variables = VariableSet::new();
+        let current_dir = Path::new("/home");
+        let file_root = Path::new("file_root");
+        let context_dir = ContextDir::new(current_dir, file_root);
+        let mut cache = BodyCache::new();
+
+        let mut assert = assert_count_user();
+        assert.line_terminator0.comment = Some(Comment {
+            value: " Three users are expected ".to_string(),
+            source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+        });
+
+        assert_eq!(
+            eval_explicit_assert(
+                &assert,
+                &variables,
+                &[&xml_three_users_http_response()],
+                &mut cache,
+                &context_dir,
+                &QueryOptions {
+                    use_jsonpath_coercion: true,
+                },
+            ),
+            AssertResult::Explicit {
+                actual: Ok(Some(Value::Number(Number::Integer(3)))),
+                source_info: SourceInfo::new(Pos::new(1, 22), Pos::new(1, 24)),
+                predicate_result: Some(Ok(())),
+                description: Some("Three users are expected".to_string()),
+            }
+        );
+    }
+
+    #[test]
     fn test_eval() {
         let variables = VariableSet::new();
         let current_dir = Path::new("/home");
@@ -294,6 +342,7 @@ pub mod tests {
                 actual: Ok(Some(Value::Number(Number::Integer(3)))),
                 source_info: SourceInfo::new(Pos::new(1, 22), Pos::new(1, 24)),
                 predicate_result: Some(Ok(())),
+                description: None,
             }
         );
     }

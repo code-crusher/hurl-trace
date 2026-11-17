@@ -6,6 +6,7 @@ error: Assert failure
  7 | cookie "cookie1[Secure]" == false      # This is not valid, Secure attribute exists or not but does have a value
    |   actual:   none
    |   expected: boolean <false>
+   |   description: This is not valid, Secure attribute exists or not but does have a value
    |
 
 error: Assert failure
@@ -16,5 +17,6 @@ error: Assert failure
 11 | cookie "cookie2[Secure]" == true       # This is not valid, Secure attribute exists or not but does have a value
    |   actual:   unit
    |   expected: boolean <true>
+   |   description: This is not valid, Secure attribute exists or not but does have a value
    |
 

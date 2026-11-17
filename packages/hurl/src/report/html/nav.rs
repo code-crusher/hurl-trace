@@ -127,6 +127,7 @@ mod tests {
                 actual: "<script>alert('Hi')</script>".to_string(),
                 expected: "Hello world".to_string(),
                 type_mismatch: false,
+                description: None,
             },
             true,
         );
