@@ -47,8 +47,21 @@ impl Entry {
     }
 }
 
+/// Represents the optional `[FixedMethod]` marker set before a request line.
+///
+/// This marker allows the request method to be any string, and not only uppercase ASCII
+/// letters (see <https://github.com/Orange-OpenSource/hurl/issues/4063>).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixedMethod {
+    pub line_terminators: Vec<LineTerminator>,
+    pub space0: Whitespace,
+    pub line_terminator0: LineTerminator,
+    pub source_info: SourceInfo,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Request {
+    pub fixed_method: Option<FixedMethod>,
     pub line_terminators: Vec<LineTerminator>,
     pub space0: Whitespace,
     pub method: Method,

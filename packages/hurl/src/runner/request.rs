@@ -226,6 +226,7 @@ mod tests {
             newline: whitespace(),
         };
         Request {
+            fixed_method: None,
             line_terminators: vec![],
             space0: whitespace(),
             method: AstMethod::new("GET"),
@@ -283,6 +284,7 @@ mod tests {
             newline: whitespace(),
         };
         Request {
+            fixed_method: None,
             line_terminators: vec![],
             space0: whitespace(),
             method: AstMethod::new("GET"),
@@ -414,6 +416,7 @@ mod tests {
             newline: whitespace(),
         };
         assert!(get_cmd_cookie_storage_clear(&Request {
+            fixed_method: None,
             line_terminators: vec![LineTerminator {
                 space0: whitespace(),
                 comment: Some(Comment {
@@ -453,7 +456,8 @@ mod tests {
         assert_eq!(
             Some("localhost\tFALSE\t/\tFALSE\t0\tcookie1\tvalueA".to_string()),
             get_cmd_cookie_storage_set(&Request {
-                line_terminators: vec![LineTerminator {
+                fixed_method: None,
+            line_terminators: vec![LineTerminator {
                     space0: whitespace(),
                     comment: Some(Comment {
                         value:

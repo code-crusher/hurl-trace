@@ -18,7 +18,7 @@
 use hurl_core::ast::{
     Assert, Base64, Body, Bytes, Capture, Comment, Cookie, CookieAttribute, CookieAttributeName,
     CookiePath, DurationOption, Entry, EntryOption, File, FilenameParam, Filter, FilterValue,
-    GraphQl, Hex, HurlFile, KeyValue, LineTerminator, MultilineString, MultilineStringAttribute,
+    FixedMethod, GraphQl, Hex, HurlFile, KeyValue, LineTerminator, MultilineString, MultilineStringAttribute,
     MultilineStringKind, MultipartParam, OptionKind, Predicate, PredicateFunc, PredicateFuncValue,
     PredicateValue, Query, QueryValue, RegexValue, Request, Response, Section, SectionValue,
     SourceInfo, Template, VariableDefinition, Whitespace,
@@ -41,6 +41,7 @@ fn lint_entry(entry: &Entry) -> Entry {
 }
 
 fn lint_request(request: &Request) -> Request {
+    let fixed_method = request.fixed_method.as_ref().map(lint_fixed_method);
     let line_terminators = request.line_terminators.clone();
     let space0 = empty_whitespace();
     let method = request.method.clone();
@@ -55,6 +56,7 @@ fn lint_request(request: &Request) -> Request {
 
     let source_info = SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0));
     Request {
+        fixed_method,
         line_terminators,
         space0,
         method,
@@ -64,6 +66,19 @@ fn lint_request(request: &Request) -> Request {
         headers,
         sections,
         body,
+        source_info,
+    }
+}
+
+fn lint_fixed_method(fixed_method: &FixedMethod) -> FixedMethod {
+    let line_terminators = fixed_method.line_terminators.clone();
+    let space0 = empty_whitespace();
+    let line_terminator0 = lint_line_terminator(&fixed_method.line_terminator0);
+    let source_info = SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0));
+    FixedMethod {
+        line_terminators,
+        space0,
+        line_terminator0,
         source_info,
     }
 }

@@ -17,8 +17,8 @@
  */
 use crate::ast::VersionValue::VersionAny;
 use crate::ast::{
-    Body, Entry, HurlFile, Method, Request, Response, Section, SourceInfo, Status, StatusValue,
-    Version, VersionValue,
+    Body, Entry, FixedMethod, HurlFile, LineTerminator, Method, Request, Response, Section,
+    SourceInfo, Status, StatusValue, Version, VersionValue, Whitespace,
 };
 use crate::combinator::{optional, zero_or_more};
 use crate::reader::Reader;
@@ -56,7 +56,18 @@ fn request(reader: &mut Reader) -> ParseResult<Request> {
     let start = reader.cursor();
     let line_terminators = optional_line_terminators(reader)?;
     let space0 = zero_or_more_spaces(reader)?;
-    let method = method(reader)?;
+
+    // An optional `[FixedMethod]` marker, set before the request line, allows the request method
+    // to be any string, and not only uppercase ASCII letters.
+    let (fixed_method, line_terminators, space0) = if is_fixed_method(reader) {
+        let fixed_method = fixed_method(line_terminators, space0, reader)?;
+        let line_terminators = optional_line_terminators(reader)?;
+        let space0 = zero_or_more_spaces(reader)?;
+        (Some(fixed_method), line_terminators, space0)
+    } else {
+        (None, line_terminators, space0)
+    };
+    let method = method(reader, fixed_method.is_some())?;
     let space1 = one_or_more_spaces(reader)?;
     let url = unquoted_template(reader)?;
     let line_terminator0 = line_terminator(reader)?;
@@ -68,6 +79,7 @@ fn request(reader: &mut Reader) -> ParseResult<Request> {
     check_duplicated_sections(&sections)?;
 
     Ok(Request {
+        fixed_method,
         line_terminators,
         space0,
         method,
@@ -126,7 +138,30 @@ fn check_duplicated_sections(sections: &[Section]) -> Result<(), ParseError> {
     Ok(())
 }
 
-fn method(reader: &mut Reader) -> ParseResult<Method> {
+/// Returns `true` if the reader is positioned on the `[FixedMethod]` marker.
+fn is_fixed_method(reader: &Reader) -> bool {
+    reader.peek_n("[FixedMethod]".len()) == "[FixedMethod]"
+}
+
+/// Parses the `[FixedMethod]` marker, with the line terminators and whitespaces preceding it.
+fn fixed_method(
+    line_terminators: Vec<LineTerminator>,
+    space0: Whitespace,
+    reader: &mut Reader,
+) -> ParseResult<FixedMethod> {
+    let start = reader.cursor();
+    try_literal("[FixedMethod]", reader)?;
+    let line_terminator0 = line_terminator(reader)?;
+    let source_info = SourceInfo::new(start.pos, reader.cursor().pos);
+    Ok(FixedMethod {
+        line_terminators,
+        space0,
+        line_terminator0,
+        source_info,
+    })
+}
+
+fn method(reader: &mut Reader, fixed: bool) -> ParseResult<Method> {
     if reader.is_eof() {
         let kind = ParseErrorKind::Method {
             name: "<EOF>".to_string(),
@@ -135,7 +170,7 @@ fn method(reader: &mut Reader) -> ParseResult<Method> {
     }
     let start = reader.cursor();
     let name = reader.read_while(|c| c.is_ascii_alphabetic());
-    if name.is_empty() || name.to_uppercase() != name {
+    if name.is_empty() || (!fixed && name.to_uppercase() != name) {
         let kind = ParseErrorKind::Method { name };
         Err(ParseError::new(start.pos, false, kind))
     } else {
@@ -283,6 +318,7 @@ mod tests {
     fn test_request() {
         let mut reader = Reader::new("GET http://google.fr");
         let default_request = Request {
+            fixed_method: None,
             line_terminators: vec![],
             space0: Whitespace {
                 value: String::new(),
@@ -322,6 +358,7 @@ mod tests {
 
         let mut reader = Reader::new("GET  http://google.fr # comment");
         let default_request = Request {
+            fixed_method: None,
             line_terminators: vec![],
             space0: Whitespace {
                 value: String::new(),
@@ -510,22 +547,77 @@ mod tests {
     #[test]
     fn test_method() {
         let mut reader = Reader::new("xxx ");
-        let error = method(&mut reader).err().unwrap();
+        let error = method(&mut reader, false).err().unwrap();
         assert_eq!(error.pos, Pos { line: 1, column: 1 });
         assert_eq!(reader.cursor().index, CharPos(3));
 
         let mut reader = Reader::new("");
-        let error = method(&mut reader).err().unwrap();
+        let error = method(&mut reader, false).err().unwrap();
         assert_eq!(error.pos, Pos { line: 1, column: 1 });
         assert_eq!(reader.cursor().index, CharPos(0));
 
         let mut reader = Reader::new("GET ");
-        assert_eq!(method(&mut reader).unwrap(), Method::new("GET"));
+        assert_eq!(method(&mut reader, false).unwrap(), Method::new("GET"));
         assert_eq!(reader.cursor().index, CharPos(3));
 
         let mut reader = Reader::new("CUSTOM");
-        assert_eq!(method(&mut reader).unwrap(), Method::new("CUSTOM"));
+        assert_eq!(method(&mut reader, false).unwrap(), Method::new("CUSTOM"));
         assert_eq!(reader.cursor().index, CharPos(6));
+    }
+
+    #[test]
+    fn test_fixed_method() {
+        // A fixed method can be lowercased or mixed-cased.
+        let mut reader = Reader::new("Get ");
+        assert_eq!(method(&mut reader, true).unwrap(), Method::new("Get"));
+        assert_eq!(reader.cursor().index, CharPos(3));
+
+        let mut reader = Reader::new("GeT ");
+        assert_eq!(method(&mut reader, true).unwrap(), Method::new("GeT"));
+        assert_eq!(reader.cursor().index, CharPos(3));
+
+        let mut reader = Reader::new("get ");
+        assert_eq!(method(&mut reader, true).unwrap(), Method::new("get"));
+        assert_eq!(reader.cursor().index, CharPos(3));
+
+        // Even with a fixed method, the method can't be empty.
+        let mut reader = Reader::new(" ");
+        let error = method(&mut reader, true).err().unwrap();
+        assert_eq!(error.pos, Pos { line: 1, column: 1 });
+        assert_eq!(reader.cursor().index, CharPos(0));
+    }
+
+    #[test]
+    fn test_request_with_fixed_method() {
+        let mut reader = Reader::new("[FixedMethod]\nGet http://google.fr");
+        let r = request(&mut reader).unwrap();
+        assert!(r.fixed_method.is_some());
+        assert_eq!(r.method, Method::new("Get"));
+        assert_eq!(r.url.to_string(), "http://google.fr");
+        assert_eq!(reader.cursor().index, CharPos(34));
+
+        // `[FixedMethod]` can be followed by empty lines and comments.
+        let mut reader = Reader::new("[FixedMethod]\n\n# comment\nGeT http://google.fr");
+        let r = request(&mut reader).unwrap();
+        assert!(r.fixed_method.is_some());
+        assert_eq!(r.method, Method::new("GeT"));
+        assert_eq!(reader.cursor().index, CharPos(45));
+
+        // Without `[FixedMethod]`, the method must be uppercase.
+        let mut reader = Reader::new("Get http://google.fr");
+        let error = request(&mut reader).err().unwrap();
+        assert_eq!(error.pos, Pos { line: 1, column: 1 });
+
+        // `[FixedMethod]` is only valid before a request line: after the request line, it's an
+        // unknown section.
+        let mut reader = Reader::new("GET http://google.fr\n[FixedMethod]");
+        let error = request(&mut reader).err().unwrap();
+        assert_eq!(
+            error.kind,
+            ParseErrorKind::RequestSectionName {
+                name: "FixedMethod".to_string()
+            }
+        );
     }
 
     #[test]

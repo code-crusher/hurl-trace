@@ -18,7 +18,7 @@
 use hurl_core::ast::{
     Assert, Base64, Body, BooleanOption, Bytes, Capture, CertificateAttributeName, Comment, Cookie,
     CookiePath, CountOption, Duration, DurationOption, Entry, EntryOption, File, FilenameParam,
-    FilenameValue, FilterValue, Hex, HurlFile, I64, IntegerValue, JsonValue, KeyValue,
+    FilenameValue, FilterValue, FixedMethod, Hex, HurlFile, I64, IntegerValue, JsonValue, KeyValue,
     LineTerminator, Method, MultilineString, MultipartParam, NaturalOption, Number, OptionKind,
     Placeholder, Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue, Regex,
     RegexValue, Request, Response, Section, SectionValue, StatusValue, Template, U64,
@@ -189,6 +189,18 @@ impl Lint for Entry {
         if let Some(response) = &self.response {
             s.push_str(&response.lint());
         }
+        s
+    }
+}
+
+impl Lint for FixedMethod {
+    fn lint(&self) -> String {
+        let mut s = String::new();
+        self.line_terminators
+            .iter()
+            .for_each(|lt| s.push_str(&lint_lt(lt, false)));
+        s.push_str("[FixedMethod]");
+        s.push_str(&lint_lt(&self.line_terminator0, true));
         s
     }
 }
@@ -688,6 +700,9 @@ impl Lint for RegexValue {
 impl Lint for Request {
     fn lint(&self) -> String {
         let mut s = String::new();
+        if let Some(fixed_method) = &self.fixed_method {
+            s.push_str(&fixed_method.lint());
+        }
         self.line_terminators
             .iter()
             .for_each(|lt| s.push_str(&lint_lt(lt, false)));

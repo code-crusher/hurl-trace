@@ -23,8 +23,8 @@
 use crate::types::{Count, DurationUnit, SourceString, ToSource};
 
 use super::core::{
-    Body, Entry, Filter, FilterValue, HurlFile, IntegerValue, Method, Request, Response,
-    StatusValue, VersionValue,
+    Body, Entry, Filter, FilterValue, FixedMethod, HurlFile, IntegerValue, Method, Request,
+    Response, StatusValue, VersionValue,
 };
 use super::json::JsonValue;
 use super::option::{
@@ -116,6 +116,10 @@ pub trait Visitor: Sized {
     }
 
     fn visit_filename(&mut self, filename: &Template) {}
+
+    fn visit_fixed_method(&mut self, fixed_method: &FixedMethod) {
+        walk_fixed_method(self, fixed_method);
+    }
 
     fn visit_filter(&mut self, filter: &Filter) {
         walk_filter(self, filter);
@@ -743,7 +747,19 @@ pub fn walk_predicate_value<V: Visitor>(visitor: &mut V, pred_value: &PredicateV
     }
 }
 
+pub fn walk_fixed_method<V: Visitor>(visitor: &mut V, fixed_method: &FixedMethod) {
+    fixed_method.line_terminators.iter().for_each(|lt| {
+        visitor.visit_lt(lt);
+    });
+    visitor.visit_whitespace(&fixed_method.space0);
+    visitor.visit_section_header("[FixedMethod]");
+    visitor.visit_lt(&fixed_method.line_terminator0);
+}
+
 pub fn walk_request<V: Visitor>(visitor: &mut V, request: &Request) {
+    if let Some(fixed_method) = &request.fixed_method {
+        visitor.visit_fixed_method(fixed_method);
+    }
     request.line_terminators.iter().for_each(|lt| {
         visitor.visit_lt(lt);
     });

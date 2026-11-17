@@ -229,7 +229,10 @@ impl DisplaySourceError for ParseError {
                 ];
                 let default = format!("Valid values are {}", valid_values.join(", "));
                 let did_you_mean = did_you_mean(&valid_values, name.as_str(), &default);
-                format!("the HTTP method <{name}> is not valid. {did_you_mean}")
+                format!(
+                    "the HTTP method <{name}> is not valid. {did_you_mean}\n\
+                     If you want to use the <{name}> method add [FixedMethod] before the request line"
+                )
             }
             ParseErrorKind::Multiline => "the multiline is not valid".to_string(),
             ParseErrorKind::MultilineLanguageHint(name) => format!("Invalid language hint {name}"),

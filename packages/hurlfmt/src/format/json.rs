@@ -58,13 +58,15 @@ impl ToJson for Entry {
 
 impl ToJson for Request {
     fn to_json(&self) -> JValue {
-        let mut attributes = vec![
-            (
-                "method".to_string(),
-                JValue::String(self.method.to_string()),
-            ),
-            ("url".to_string(), JValue::String(self.url.to_string())),
-        ];
+        let mut attributes = vec![];
+        if self.fixed_method.is_some() {
+            attributes.push(("fixed_method".to_string(), JValue::Boolean(true)));
+        }
+        attributes.push((
+            "method".to_string(),
+            JValue::String(self.method.to_string()),
+        ));
+        attributes.push(("url".to_string(), JValue::String(self.url.to_string())));
         add_headers(&mut attributes, &self.headers);
 
         if !self.querystring_params().is_empty() {
@@ -772,6 +774,7 @@ pub mod tests {
     pub fn test_request() {
         assert_eq!(
             Request {
+                fixed_method: None,
                 line_terminators: vec![],
                 space0: whitespace(),
                 method: Method::new("GET"),
