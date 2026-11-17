@@ -167,6 +167,11 @@ pub enum AssertResult {
         actual: Result<Value, RunnerError>,
         expected: Result<Value, RunnerError>,
         source_info: SourceInfo,
+        /// For each 0-based line of the expected value, the 1-based absolute source
+        /// line it originates from. Used to report diff errors at the right position
+        /// when the expected value is rendered from a template (e.g. a `{{variable}}`
+        /// expanding to multiple lines). `None` when the mapping can not be tracked.
+        expected_lines: Option<Vec<usize>>,
     },
     /// Explicit assert on HTTP response.
     Explicit {

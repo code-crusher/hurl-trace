@@ -68,7 +68,7 @@ fn get_hunk_lines(ops: &[DiffOp]) -> (usize, usize) {
                 start = op.old_range().start;
             }
             DiffTag::Delete => return (start, op.old_range().start),
-            DiffTag::Insert => return (start, op.old_range().start - 1),
+            DiffTag::Insert => return (start, op.old_range().start.saturating_sub(1)),
             DiffTag::Replace => return (start, op.old_range().start),
         }
     }

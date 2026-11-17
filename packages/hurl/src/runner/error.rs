@@ -51,7 +51,6 @@ impl RunnerError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RunnerErrorKind {
     AssertBodyDiffError {
-        body_source_info: SourceInfo,
         hunks: Vec<DiffHunk>,
     },
     AssertBodyValueError {
@@ -394,23 +393,14 @@ impl DisplaySourceError for RunnerError {
 
     fn message(&self, content: &[&str]) -> StyledString {
         let mut text = StyledString::new();
-        if let RunnerErrorKind::AssertBodyDiffError {
-            hunks,
-            body_source_info,
-        } = &self.kind
-        {
+        if let RunnerErrorKind::AssertBodyDiffError { hunks } = &self.kind {
             let loc_max_width = max(content.len().to_string().len(), 2);
 
             // Only process first hunk for the time-being
             // TODO: Process all the hunks
             for hunk in &hunks[..1] {
                 text.push("\n");
-                text.append(hunk_string(
-                    hunk,
-                    body_source_info.start.line,
-                    content,
-                    loc_max_width,
-                ));
+                text.append(hunk_string(hunk, content, loc_max_width));
             }
             text
         } else {
@@ -438,7 +428,6 @@ fn color_red_multiline_string(s: &str) -> StyledString {
 
 fn hunk_string(
     hunk: &DiffHunk,
-    source_line: usize,
     content: &[&str],
     loc_max_width: usize,
 ) -> StyledString {
@@ -452,7 +441,7 @@ fn hunk_string(
         format!("{spaces} {separator}").as_str(),
         Style::new().blue().bold(),
     );
-    let error_line = source_line + hunk.source_line;
+    let error_line = hunk.source_line;
     let source = content[error_line - 1];
     s.push_with(
         format!("{error_line:>loc_max_width$} {separator} {source}\n").as_str(),
@@ -652,10 +641,12 @@ HTTP/1.0 200
 "#;
         let lines = content.lines().collect::<Vec<_>>();
         let filename = "test.hurl";
-        let kind = RunnerErrorKind::AssertBodyDiffError {
-            hunks: diff("<p>Hello</p>\n", "<p>Hello</p>\n\n"),
-            body_source_info: SourceInfo::new(Pos::new(4, 1), Pos::new(4, 1)),
-        };
+        let mut hunks = diff("<p>Hello</p>\n", "<p>Hello</p>\n\n");
+        // The body starts at line 4: hunk lines are absolute source lines.
+        for hunk in &mut hunks {
+            hunk.source_line += 4;
+        }
+        let kind = RunnerErrorKind::AssertBodyDiffError { hunks };
         let error_source_info = SourceInfo::new(Pos::new(4, 1), Pos::new(4, 1));
         let entry_source_info = SourceInfo::new(Pos::new(1, 1), Pos::new(1, 20));
         let error = RunnerError::new(error_source_info, kind, true);

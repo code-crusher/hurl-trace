@@ -89,6 +89,7 @@ impl AssertResult {
                 actual,
                 expected,
                 source_info,
+                expected_lines,
             } => match expected {
                 Err(e) => Some(e.clone()),
                 Ok(expected) => match actual {
@@ -99,19 +100,16 @@ impl AssertResult {
                         } else if use_diff(expected, actual) {
                             let actual = actual.to_string();
                             let expected = expected.to_string();
-                            let hunks = diff(&expected, &actual);
+                            let mut hunks = diff(&expected, &actual);
+                            resolve_hunk_lines(&mut hunks, expected_lines.as_deref(), source_info);
                             let source_line = hunks
-                                .clone()
                                 .first()
                                 .expect("at least a diff hunk")
                                 .source_line;
-                            let kind = RunnerErrorKind::AssertBodyDiffError {
-                                hunks,
-                                body_source_info: *source_info,
-                            };
+                            let kind = RunnerErrorKind::AssertBodyDiffError { hunks };
                             let diff_source_info = SourceInfo::new(
-                                Pos::new(source_info.start.line + source_line, 1),
-                                Pos::new(source_info.start.line + source_line, 1),
+                                Pos::new(source_line, 1),
+                                Pos::new(source_line, 1),
                             );
                             Some(RunnerError::new(diff_source_info, kind, false))
                         } else {
@@ -139,6 +137,33 @@ impl AssertResult {
             AssertResult::ImplicitBody { source_info, .. } => source_info.start.line,
             AssertResult::Explicit { source_info, .. } => source_info.start.line,
         }
+    }
+}
+
+/// Rewrites the 0-based line of each diff hunk (expressed on the expected text)
+/// to a 1-based absolute line in the source document.
+///
+/// When the per-line source mapping `expected_lines` of the expected value is known,
+/// it is used directly: `expected_lines[i]` is the absolute source line of the i-th
+/// line of the expected text. Otherwise, lines are assumed to map linearly from
+/// `source_info.start.line`, which is only accurate when the expected text contains no
+/// line introduced by the rendering itself (e.g. a `{{variable}}` expanding to multiple
+/// lines).
+fn resolve_hunk_lines(
+    hunks: &mut [diff::DiffHunk],
+    expected_lines: Option<&[usize]>,
+    source_info: &SourceInfo,
+) {
+    let base = source_info.start.line;
+    for hunk in hunks {
+        hunk.source_line = match expected_lines {
+            Some(lines) => lines
+                .get(hunk.source_line)
+                .copied()
+                .or_else(|| lines.last().copied())
+                .unwrap_or(base),
+            None => base + hunk.source_line,
+        };
     }
 }
 

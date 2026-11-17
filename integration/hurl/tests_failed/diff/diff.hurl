@@ -252,3 +252,13 @@ HTTP 200
   "name": "{{name}}"
 }
 ```
+
+GET http://localhost:8000/diff/change/multiline-variable
+[Options]
+variable: newline=\n
+HTTP 200
+```
+line1
+line2{{newline}}line3
+line4
+```

@@ -16,12 +16,11 @@
  *
  */
 use hurl_core::ast::{MultilineString, MultilineStringKind};
-use hurl_core::types::ToSource;
 use serde_json::json;
 
 use super::error::RunnerError;
 use super::json::eval_json_value;
-use super::template::eval_template;
+use super::template::{eval_template, eval_template_with_lines};
 use super::variable::VariableSet;
 
 /// Renders to string a multiline body, given a set of variables.
@@ -29,16 +28,36 @@ pub fn eval_multiline(
     multiline: &MultilineString,
     variables: &VariableSet,
 ) -> Result<String, RunnerError> {
+    Ok(eval_multiline_with_lines(multiline, variables)?.0)
+}
+
+/// Renders to string a multiline body, given a set of variables, and additionally returns,
+/// for each output line of the rendered body, the 1-based absolute source line it
+/// originates from.
+///
+/// The returned `Vec` maps a 0-based line index in the rendered value to a 1-based line
+/// number in the source document. It is `None` for GraphQL blocks, whose rendering
+/// does not preserve the source layout.
+///
+/// Newlines introduced by the rendering of a placeholder are attributed to the source
+/// line the placeholder is written on.
+
+pub fn eval_multiline_with_lines(
+    multiline: &MultilineString,
+    variables: &VariableSet,
+) -> Result<(String, Option<Vec<usize>>), RunnerError> {
     match &multiline.kind {
         MultilineStringKind::Text(value)
         | MultilineStringKind::Json(value)
         | MultilineStringKind::Xml(value) => {
-            let s = eval_template(value, variables)?;
-            Ok(s)
+            let (s, lines) = eval_template_with_lines(value, variables)?;
+            Ok((s, Some(lines)))
         }
         MultilineStringKind::Raw(value) => {
-            let s = value.to_source().to_string();
-            Ok(s)
+            // A `raw` block contains a single literal `String` element, so evaluating it
+            // as a template returns the text as-is, without placeholder substitution.
+            let (s, lines) = eval_template_with_lines(value, variables)?;
+            Ok((s, Some(lines)))
         }
         MultilineStringKind::GraphQl(graphql) => {
             let query = eval_template(&graphql.value, variables)?;
@@ -50,7 +69,7 @@ pub fn eval_multiline(
                     format!(r#"{{"query":{query},"variables":{s}}}"#)
                 }
             };
-            Ok(body)
+            Ok((body, None))
         }
     }
 }

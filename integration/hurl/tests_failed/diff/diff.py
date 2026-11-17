@@ -246,3 +246,12 @@ def error_diff_change_variable():
   "name": "Bob"
 }
 """
+
+
+@app.route("/diff/change/multiline-variable")
+def error_diff_change_multiline_variable():
+    return """line1
+line2
+line3
+LINE4
+"""

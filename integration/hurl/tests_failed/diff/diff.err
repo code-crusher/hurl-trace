@@ -86,3 +86,13 @@ error: Assert body value
     |   +  "name": "Bob"
     |
 
+error: Assert body value
+   --> tests_failed/diff/diff.hurl:263:1
+    |
+    | GET http://localhost:8000/diff/change/multiline-variable
+    | ...
+263 | line4
+    |   -line4
+    |   +LINE4
+    |
+

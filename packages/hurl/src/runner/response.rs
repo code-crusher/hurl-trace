@@ -202,6 +202,7 @@ fn eval_implicit_body_asserts(
                 actual,
                 expected,
                 source_info: spec_body.space0.source_info,
+                expected_lines: None,
             }
         }
         Bytes::Xml(value) => {
@@ -224,12 +225,13 @@ fn eval_implicit_body_asserts(
                 actual,
                 expected,
                 source_info: spec_body.space0.source_info,
+                expected_lines: None,
             }
         }
         Bytes::OnelineString(value) => {
-            let expected = match template::eval_template(value, variables) {
-                Ok(s) => Ok(Value::String(s)),
-                Err(e) => Err(e),
+            let (expected, expected_lines) = match template::eval_template_with_lines(value, variables) {
+                Ok((s, lines)) => (Ok(Value::String(s)), Some(lines)),
+                Err(e) => (Err(e), None),
             };
             let actual = match http_response.text() {
                 Ok(s) => Ok(Value::String(s)),
@@ -249,12 +251,13 @@ fn eval_implicit_body_asserts(
                 actual,
                 expected,
                 source_info: value.source_info,
+                expected_lines,
             }
         }
         Bytes::MultilineString(multi) => {
-            let expected = match multiline::eval_multiline(multi, variables) {
-                Ok(s) => Ok(Value::String(s)),
-                Err(e) => Err(e),
+            let (expected, expected_lines) = match multiline::eval_multiline_with_lines(multi, variables) {
+                Ok((s, lines)) => (Ok(Value::String(s)), lines),
+                Err(e) => (Err(e), None),
             };
             let actual = match http_response.text() {
                 Ok(s) => Ok(Value::String(s)),
@@ -274,6 +277,7 @@ fn eval_implicit_body_asserts(
                 actual,
                 expected,
                 source_info: multi.value().source_info,
+                expected_lines,
             }
         }
         Bytes::Base64(Base64 {
@@ -304,6 +308,7 @@ fn eval_implicit_body_asserts(
                     start: space0.source_info.end,
                     end: space1.source_info.start,
                 },
+                expected_lines: None,
             }
         }
         Bytes::Hex(Hex {
@@ -334,6 +339,7 @@ fn eval_implicit_body_asserts(
                     start: space0.source_info.end,
                     end: space1.source_info.start,
                 },
+                expected_lines: None,
             }
         }
         Bytes::File { .. } => {
@@ -359,6 +365,7 @@ fn eval_implicit_body_asserts(
                 actual,
                 expected,
                 source_info: spec_body.space0.source_info,
+                expected_lines: None,
             }
         }
     }
