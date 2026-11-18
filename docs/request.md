@@ -326,6 +326,19 @@ field2: file,example.txt;
 field3: file,example.zip; application/zip
 ```
 
+With `file,`, the file is attached to the request as a file upload: the part has a `filename`
+attribute in its `Content-Disposition` header. To embed the content of a file as a text field
+value, without any `filename`, use `embedfile,` instead:
+
+```hurl
+POST https://example.org/upload
+[Multipart]
+# The part has no `filename` attribute, its value is the content of example.txt:
+field1: embedfile,example.txt;
+# One can specify the content type of the embedded file:
+field2: embedfile,example.html; text/html
+```
+
 Files are relative to the input Hurl file, and cannot contain implicit parent directory (`..`). You can use  
 [`--file-root` option] to specify the root directory of all file nodes.
 

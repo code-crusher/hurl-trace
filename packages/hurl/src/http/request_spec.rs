@@ -64,6 +64,7 @@ pub struct Method(pub String);
 pub enum MultipartParam {
     Param(Param),
     FileParam(FileParam),
+    EmbedFileParam(EmbedFileParam),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,6 +73,16 @@ pub struct FileParam {
     pub filename: String,
     pub data: Vec<u8>,
     pub content_type: String,
+}
+
+/// A multipart text field whose value is the content of a file, as opposed to a file upload
+/// (see [`FileParam`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EmbedFileParam {
+    pub name: String,
+    pub filename: String,
+    pub data: Vec<u8>,
+    pub content_type: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -102,6 +113,7 @@ impl fmt::Display for MultipartParam {
         match self {
             MultipartParam::Param(param) => write!(f, "{param}"),
             MultipartParam::FileParam(param) => write!(f, "{param}"),
+            MultipartParam::EmbedFileParam(param) => write!(f, "{param}"),
         }
     }
 }
@@ -113,5 +125,15 @@ impl fmt::Display for FileParam {
             "{}: file,{}; {}",
             self.name, self.filename, self.content_type
         )
+    }
+}
+
+impl fmt::Display for EmbedFileParam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: embedfile,{};", self.name, self.filename)?;
+        if let Some(content_type) = &self.content_type {
+            write!(f, " {content_type}")?;
+        }
+        Ok(())
     }
 }

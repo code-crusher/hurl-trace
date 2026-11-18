@@ -233,7 +233,8 @@ impl Lint for FilenameParam {
 impl Lint for FilenameValue {
     fn lint(&self) -> String {
         let mut s = String::new();
-        s.push_str("file,");
+        s.push_str(self.kind.identifier());
+        s.push(',');
         s.push_str(&self.filename.lint());
         s.push(';');
         if let Some(content_type) = &self.content_type {

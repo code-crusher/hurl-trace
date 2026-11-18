@@ -98,11 +98,30 @@ pub struct FilenameParam {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FilenameValue {
+    pub kind: FilenameValueKind,
     pub space0: Whitespace,
     pub filename: Template,
     pub space1: Whitespace,
     pub space2: Whitespace,
     pub content_type: Option<Template>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FilenameValueKind {
+    /// The file is attached to the request as a file upload (`file,` syntax).
+    File,
+    /// The content of the file is embedded in a text field (`embedfile,` syntax).
+    EmbedFile,
+}
+
+impl FilenameValueKind {
+    /// Returns the Hurl string identifier of this filename value kind.
+    pub fn identifier(&self) -> &'static str {
+        match self {
+            FilenameValueKind::File => "file",
+            FilenameValueKind::EmbedFile => "embedfile",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

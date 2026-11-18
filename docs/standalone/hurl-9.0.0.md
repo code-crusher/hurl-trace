@@ -1,6 +1,6 @@
 # Hurl Documentation
 
-## Version 9.0.0 - 06-11-2026
+## Version 9.0.0 - 18-11-2026
 
 # Table of Contents
 
@@ -1163,6 +1163,17 @@ field1: value1
 field2: file,example.txt;
 # One can specify the file content type:
 field3: file,example.zip; application/zip
+```
+
+Files can also be sent as text field values, without a `filename` attribute, using `embedfile,`:
+
+```hurl
+POST https://example.org/upload
+[Multipart]
+# The part has no `filename` attribute, its value is the content of example.txt:
+field1: embedfile,example.txt;
+# One can specify the content type of the embedded file:
+field2: embedfile,example.html; text/html
 ```
 
 [Doc](#file-format-request-multipart-form-data)
@@ -3270,6 +3281,19 @@ field1: value1
 field2: file,example.txt;
 # One can specify the file content type:
 field3: file,example.zip; application/zip
+```
+
+With `file,`, the file is attached to the request as a file upload: the part has a `filename`
+attribute in its `Content-Disposition` header. To embed the content of a file as a text field
+value, without any `filename`, use `embedfile,` instead:
+
+```hurl
+POST https://example.org/upload
+[Multipart]
+# The part has no `filename` attribute, its value is the content of example.txt:
+field1: embedfile,example.txt;
+# One can specify the content type of the embedded file:
+field2: embedfile,example.html; text/html
 ```
 
 Files are relative to the input Hurl file, and cannot contain implicit parent directory (`..`). You can use  
@@ -6202,7 +6226,7 @@ Short description:
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="multipart-form-data-param">multipart-form-data-param</span><span class="grammar-usedby">(used by <a href="#multipart-form-data-section">multipart-form-data-section</a>)</span></div><div class="grammar-rule-expression"><a href="#filename-param">filename-param</a><span class="grammar-symbol">|</span><a href="#key-value">key-value</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="filename-param">filename-param</span><span class="grammar-usedby">(used by <a href="#multipart-form-data-param">multipart-form-data-param</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
 <a href="#key-string">key-string</a>&nbsp;<span class="grammar-literal">:</span>&nbsp;<a href="#filename-value">filename-value</a>&nbsp;<a href="#lt">lt</a></div></div>
-<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="filename-value">filename-value</span><span class="grammar-usedby">(used by <a href="#filename-param">filename-param</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-literal">file,</span>&nbsp;<a href="#filename">filename</a>&nbsp;<span class="grammar-literal">;</span>&nbsp;<span class="grammar-symbol">(</span><a href="#filename-content-type">filename-content-type</a><span class="grammar-symbol">)</span><span class="grammar-symbol">?</span></div></div>
+<div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="filename-value">filename-value</span><span class="grammar-usedby">(used by <a href="#filename-param">filename-param</a>)</span></div><div class="grammar-rule-expression"><span class="grammar-symbol">(</span><span class="grammar-literal">file,</span><span class="grammar-symbol">|</span><span class="grammar-literal">embedfile,</span><span class="grammar-symbol">)</span>&nbsp;<a href="#filename">filename</a>&nbsp;<span class="grammar-literal">;</span>&nbsp;<span class="grammar-symbol">(</span><a href="#filename-content-type">filename-content-type</a><span class="grammar-symbol">)</span><span class="grammar-symbol">?</span></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="filename-content-type">filename-content-type</span><span class="grammar-usedby">(used by <a href="#filename-value">filename-value</a>)</span></div><div class="grammar-rule-expression"><a href="#value-string">value-string</a></div></div>
 <div class="grammar-rule"><div class="grammar-rule-declaration"><span class="grammar-rule-id" id="capture">capture</span><span class="grammar-usedby">(used by <a href="#captures-section">captures-section</a>)</span></div><div class="grammar-rule-expression"><a href="#lt">lt</a><span class="grammar-symbol">*</span><br>
 <a href="#key-string">key-string</a>&nbsp;<span class="grammar-literal">:</span>&nbsp;<a href="#query">query</a>&nbsp;<span class="grammar-symbol">(</span><a href="#sp">sp</a>&nbsp;<a href="#filter">filter</a><span class="grammar-symbol">)</span><span class="grammar-symbol">*</span>&nbsp;<span class="grammar-symbol">(</span><a href="#sp">sp</a>&nbsp;<span class="grammar-literal">redact</span><span class="grammar-symbol">)</span><span class="grammar-symbol">?</span>&nbsp;<a href="#lt">lt</a></div></div>

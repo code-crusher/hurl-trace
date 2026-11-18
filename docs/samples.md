@@ -173,6 +173,17 @@ field2: file,example.txt;
 field3: file,example.zip; application/zip
 ```
 
+Files can also be sent as text field values, without a `filename` attribute, using `embedfile,`:
+
+```hurl
+POST https://example.org/upload
+[Multipart]
+# The part has no `filename` attribute, its value is the content of example.txt:
+field1: embedfile,example.txt;
+# One can specify the content type of the embedded file:
+field2: embedfile,example.html; text/html
+```
+
 [Doc](/docs/request.md#multipart-form-data)
 
 Multipart forms can also be sent with a [multiline string body]:

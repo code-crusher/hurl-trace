@@ -48,7 +48,7 @@ use super::request::{
     CredentialForwarding, FollowLocation, IpResolve, Request, RequestedHttpVersion, TlsVersion,
 };
 use super::request_cookie::RequestCookie;
-use super::request_spec::{Body, FileParam, Method, MultipartParam, RequestSpec};
+use super::request_spec::{Body, EmbedFileParam, FileParam, Method, MultipartParam, RequestSpec};
 use super::response::{HttpVersion, Response};
 use super::timings::Timings;
 use super::url::Url;
@@ -733,6 +733,19 @@ impl Client {
                         .buffer(filename, data.clone())
                         .content_type(content_type)
                         .add()?,
+                    MultipartParam::EmbedFileParam(EmbedFileParam {
+                        name,
+                        data,
+                        content_type,
+                        ..
+                    }) => {
+                        let mut part = form.part(name);
+                        part.contents(data);
+                        if let Some(content_type) = content_type {
+                            part.content_type(content_type);
+                        }
+                        part.add()?;
+                    }
                 }
             }
             self.handle.httppost(form)?;

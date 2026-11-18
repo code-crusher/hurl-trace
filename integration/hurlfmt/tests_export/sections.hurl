@@ -14,6 +14,8 @@ number: 33611223344
 field1: value1
 field2: file,example.txt;
 field3: file,example.zip; application/zip
+field4: embedfile,example.txt;
+field5: embedfile,example.html; text/html
 [Cookies]
 theme: light
 sessionToken: abc123

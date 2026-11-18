@@ -157,7 +157,7 @@ contexts:
   # Inline encoded bodies / values:  base64,...;  hex,...;  file,...;
   # ----------------------------------------------------------------------------
   encoded-values:
-    - match: '\b(base64|hex|file)(,)'
+    - match: '\b(base64|hex|file|embedfile)(,)'
       captures:
         1: support.function.encoding.hurl
         2: punctuation.separator.hurl

@@ -19,11 +19,11 @@ use base64::Engine;
 use base64::engine::general_purpose;
 use hurl_core::ast::{
     Assert, Base64, Body, BooleanOption, Bytes, Capture, CertificateAttributeName, Comment, Cookie,
-    CountOption, Duration, DurationOption, Entry, EntryOption, File, FilenameParam, Filter,
-    FilterValue, Hex, HurlFile, JsonListElement, JsonValue, JsonValueKind, KeyValue,
-    MultilineString, MultilineStringKind, MultipartParam, NaturalOption, OptionKind, Placeholder,
-    Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue, Regex, RegexValue, Request,
-    Response, StatusValue, VersionValue,
+    CountOption, Duration, DurationOption, Entry, EntryOption, File, FilenameParam,
+    FilenameValueKind, Filter, FilterValue, Hex, HurlFile, JsonListElement, JsonValue,
+    JsonValueKind, KeyValue, MultilineString, MultilineStringKind, MultipartParam, NaturalOption,
+    OptionKind, Placeholder, Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue,
+    Regex, RegexValue, Request, Response, StatusValue, VersionValue,
 };
 use hurl_core::types::{Count, ToSource};
 
@@ -288,6 +288,12 @@ impl ToJson for FilenameParam {
                 JValue::String(self.value.filename.to_string()),
             ),
         ];
+        if let FilenameValueKind::EmbedFile = self.value.kind {
+            attributes.push((
+                "type".to_string(),
+                JValue::String(self.value.kind.identifier().to_string()),
+            ));
+        }
         if let Some(content_type) = &self.value.content_type {
             attributes.push((
                 "content_type".to_string(),

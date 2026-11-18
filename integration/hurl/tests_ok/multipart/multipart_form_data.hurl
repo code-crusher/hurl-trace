@@ -17,6 +17,24 @@ upload3: file,data.txt; text/html
 HTTP 200
 
 
+# With `embedfile`, the content of the file is used as a text field value
+# (no `filename` is added to the Content-Disposition header).
+POST http://localhost:8000/multipart-form-data-embedfile
+[MultipartFormData]
+key1: value1
+field1: embedfile,data.txt;
+field2: embedfile,data.html; text/html
+HTTP 200
+
+
+POST http://localhost:8000/multipart-form-data-embedfile
+[Multipart]
+key1: value1
+field1: embedfile,data.txt;
+field2: embedfile,data.html; text/html
+HTTP 200
+
+
 # Or, as an alternative to the [MultipartFormData] section, we can just use
 # a multiline string body, constructing boundaries by hand (see https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/POST).
 # The downside of this method is that we must inline the files content (for the moment).

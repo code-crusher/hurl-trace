@@ -18,7 +18,7 @@
 use std::ffi::OsStr;
 use std::path::Path;
 
-use hurl_core::ast::{FilenameParam, FilenameValue, KeyValue, MultipartParam};
+use hurl_core::ast::{FilenameParam, FilenameValue, FilenameValueKind, KeyValue, MultipartParam};
 
 use crate::http;
 use crate::util::path::ContextDir;
@@ -51,7 +51,21 @@ pub fn eval_multipart_param(
         }
         MultipartParam::FilenameParam(param) => {
             let file_param = eval_file_param(param, context_dir, variables)?;
-            Ok(http::MultipartParam::FileParam(file_param))
+            Ok(match param.value.kind {
+                FilenameValueKind::File => http::MultipartParam::FileParam(file_param),
+                FilenameValueKind::EmbedFile => {
+                    let content_type = match &param.value.content_type {
+                        Some(content_type) => Some(eval_template(content_type, variables)?),
+                        None => None,
+                    };
+                    http::MultipartParam::EmbedFileParam(http::EmbedFileParam {
+                        name: file_param.name,
+                        filename: file_param.filename,
+                        data: file_param.data,
+                        content_type,
+                    })
+                }
+            })
         }
     }
 }
@@ -148,6 +162,7 @@ mod tests {
                 space1: whitespace(),
                 space2: whitespace(),
                 value: FilenameValue {
+                    kind: FilenameValueKind::File,
                     space0: whitespace(),
                     filename: Template::new(
                         None,
@@ -179,6 +194,117 @@ mod tests {
     }
 
     #[test]
+    fn test_eval_embedfile_param() {
+        // field1: embedfile,hello.txt;
+        let line_terminator = LineTerminator {
+            space0: whitespace(),
+            comment: None,
+            newline: whitespace(),
+        };
+        let current_dir = Path::new("/home");
+        let file_root = Path::new("tests");
+        let context_dir = ContextDir::new(current_dir, file_root);
+        let variables = VariableSet::default();
+        let param = eval_multipart_param(
+            &MultipartParam::FilenameParam(FilenameParam {
+                line_terminators: vec![],
+                space0: whitespace(),
+                key: Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "field1".to_string(),
+                        source: "field1".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                ),
+                space1: whitespace(),
+                space2: whitespace(),
+                value: FilenameValue {
+                    kind: FilenameValueKind::EmbedFile,
+                    space0: whitespace(),
+                    filename: Template::new(
+                        None,
+                        vec![TemplateElement::String {
+                            value: "hello.txt".to_string(),
+                            source: "hello.txt".to_source(),
+                        }],
+                        SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                    ),
+                    space1: whitespace(),
+                    space2: whitespace(),
+                    content_type: None,
+                },
+                line_terminator0: line_terminator.clone(),
+            }),
+            &variables,
+            &context_dir,
+        )
+        .unwrap();
+        assert_eq!(
+            param,
+            http::MultipartParam::EmbedFileParam(http::EmbedFileParam {
+                name: "field1".to_string(),
+                filename: "hello.txt".to_string(),
+                data: b"Hello World!".to_vec(),
+                content_type: None,
+            })
+        );
+
+        // field2: embedfile,hello.txt; text/plain
+        let param = eval_multipart_param(
+            &MultipartParam::FilenameParam(FilenameParam {
+                line_terminators: vec![],
+                space0: whitespace(),
+                key: Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "field2".to_string(),
+                        source: "field2".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                ),
+                space1: whitespace(),
+                space2: whitespace(),
+                value: FilenameValue {
+                    kind: FilenameValueKind::EmbedFile,
+                    space0: whitespace(),
+                    filename: Template::new(
+                        None,
+                        vec![TemplateElement::String {
+                            value: "hello.txt".to_string(),
+                            source: "hello.txt".to_source(),
+                        }],
+                        SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                    ),
+                    space1: whitespace(),
+                    space2: whitespace(),
+                    content_type: Some(Template::new(
+                        None,
+                        vec![TemplateElement::String {
+                            value: "text/plain".to_string(),
+                            source: "text/plain".to_source(),
+                        }],
+                        SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                    )),
+                },
+                line_terminator0: line_terminator,
+            }),
+            &variables,
+            &context_dir,
+        )
+        .unwrap();
+        assert_eq!(
+            param,
+            http::MultipartParam::EmbedFileParam(http::EmbedFileParam {
+                name: "field2".to_string(),
+                filename: "hello.txt".to_string(),
+                data: b"Hello World!".to_vec(),
+                content_type: Some("text/plain".to_string()),
+            })
+        );
+    }
+
+    #[test]
     fn test_file_value_content_type() {
         let mut variables = VariableSet::default();
         variables.insert(
@@ -192,6 +318,7 @@ mod tests {
         assert_eq!(
             eval_content_type(
                 &FilenameValue {
+                    kind: FilenameValueKind::File,
                     space0: whitespace(),
                     filename: Template::new(
                         None,
@@ -217,6 +344,7 @@ mod tests {
         assert_eq!(
             eval_content_type(
                 &FilenameValue {
+                    kind: FilenameValueKind::File,
                     space0: whitespace(),
                     filename: Template::new(
                         None,
@@ -242,6 +370,7 @@ mod tests {
         assert_eq!(
             eval_content_type(
                 &FilenameValue {
+                    kind: FilenameValueKind::File,
                     space0: whitespace(),
                     filename: Template::new(
                         None,
@@ -274,6 +403,7 @@ mod tests {
         assert_eq!(
             eval_content_type(
                 &FilenameValue {
+                    kind: FilenameValueKind::File,
                     space0: whitespace(),
                     filename: Template::new(
                         None,
@@ -299,6 +429,7 @@ mod tests {
         assert_eq!(
             eval_content_type(
                 &FilenameValue {
+                    kind: FilenameValueKind::File,
                     space0: whitespace(),
                     filename: Template::new(
                         None,

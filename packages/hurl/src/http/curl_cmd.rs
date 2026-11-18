@@ -28,7 +28,7 @@ use super::header::{CONTENT_TYPE, Header, HeaderVec};
 use super::options::ClientOptions;
 use super::param::Param;
 use super::request::{CredentialForwarding, FollowLocation, IpResolve, RequestedHttpVersion};
-use super::request_spec::{Body, FileParam, Method, MultipartParam, RequestSpec};
+use super::request_spec::{Body, EmbedFileParam, FileParam, Method, MultipartParam, RequestSpec};
 
 /// Represents a curl command, with arguments.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -436,6 +436,19 @@ impl MultipartParam {
             }) => {
                 let path = context_dir.resolved_path(Path::new(filename));
                 let value = format!("@{};type={}", path.to_string_lossy(), content_type);
+                format!("{name}={value}")
+            }
+            MultipartParam::EmbedFileParam(EmbedFileParam {
+                name,
+                filename,
+                content_type,
+                ..
+            }) => {
+                let path = context_dir.resolved_path(Path::new(filename));
+                let mut value = format!("<{}", path.to_string_lossy());
+                if let Some(content_type) = content_type {
+                    value.push_str(&format!(";type={content_type}"));
+                }
                 format!("{name}={value}")
             }
         }
@@ -1011,6 +1024,67 @@ mod tests {
             --data 'param1=value1' \
             --data 'param2=a%20b' \
             'http://localhost/form-params'"
+        );
+    }
+
+    #[test]
+    fn multipart_request() {
+        let secrets: &[&str] = &[];
+        let mut headers = HeaderVec::new();
+        headers.push(Header::new(
+            "Content-Type",
+            "multipart/form-data; boundary=boundary",
+        ));
+
+        let request = RequestSpec {
+            method: Method("POST".to_string()),
+            url: Url::from_str("http://localhost/multipart-form-data").unwrap(),
+            headers,
+            multipart: vec![
+                MultipartParam::Param(Param::new("key1", "value1")),
+                MultipartParam::FileParam(FileParam {
+                    name: "upload1".to_string(),
+                    filename: "data.txt".to_string(),
+                    data: b"Hello World!".to_vec(),
+                    content_type: "text/plain".to_string(),
+                }),
+                MultipartParam::EmbedFileParam(EmbedFileParam {
+                    name: "field1".to_string(),
+                    filename: "data.txt".to_string(),
+                    data: b"Hello World!".to_vec(),
+                    content_type: Some("text/plain".to_string()),
+                }),
+                MultipartParam::EmbedFileParam(EmbedFileParam {
+                    name: "field2".to_string(),
+                    filename: "data.html".to_string(),
+                    data: b"<div>Hello <b>World</b>!</div>".to_vec(),
+                    content_type: None,
+                }),
+            ],
+            ..Default::default()
+        };
+
+        let context_dir = ContextDir::default();
+        let cookie_store = CookieStore::new();
+        let options = ClientOptions::default();
+        let output = None;
+
+        let cmd = CurlCmd::new(
+            &request,
+            &cookie_store,
+            &context_dir,
+            output.as_ref(),
+            &options,
+        );
+        assert_eq!(
+            cmd.to_redacted_string(secrets),
+            "curl \
+            --header 'Content-Type: multipart/form-data; boundary=boundary' \
+            --form 'key1=value1' \
+            --form 'upload1=@data.txt;type=text/plain' \
+            --form 'field1=<data.txt;type=text/plain' \
+            --form 'field2=<data.html' \
+            'http://localhost/multipart-form-data'"
         );
     }
 

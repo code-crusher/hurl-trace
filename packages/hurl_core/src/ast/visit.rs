@@ -36,8 +36,9 @@ use super::primitive::{
     Placeholder, Regex, Template, U64, Whitespace,
 };
 use super::section::{
-    Assert, Capture, Cookie, CookiePath, FilenameParam, FilenameValue, MultipartParam, Predicate,
-    PredicateFuncValue, PredicateValue, Query, QueryValue, RegexValue, Section, SectionValue,
+    Assert, Capture, Cookie, CookiePath, FilenameParam, FilenameValue, FilenameValueKind,
+    MultipartParam, Predicate, PredicateFuncValue, PredicateValue, Query, QueryValue, RegexValue,
+    Section, SectionValue,
 };
 
 /// Each method of the `Visitor` trait is a hook to be potentially overridden. Each method's default
@@ -541,7 +542,10 @@ pub fn walk_filename_param<V: Visitor>(visitor: &mut V, param: &FilenameParam) {
 }
 
 pub fn walk_filename_value<V: Visitor>(visitor: &mut V, value: &FilenameValue) {
-    visitor.visit_literal("file,");
+    visitor.visit_literal(match value.kind {
+        FilenameValueKind::File => "file,",
+        FilenameValueKind::EmbedFile => "embedfile,",
+    });
     visitor.visit_whitespace(&value.space0);
     visitor.visit_filename(&value.filename);
     visitor.visit_whitespace(&value.space1);

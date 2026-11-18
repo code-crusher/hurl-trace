@@ -102,7 +102,7 @@ filename-param:
   lt*
   key-string ":" filename-value lt
 
-filename-value: "file," filename ";" (filename-content-type)?
+filename-value: ("file," | "embedfile,") filename ";" (filename-content-type)?
 
 filename-content-type: value-string
 

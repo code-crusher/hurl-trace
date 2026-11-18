@@ -23,3 +23,17 @@ def multipart_form_data():
     assert upload3.read() == b"Hello World!"
 
     return ""
+
+
+@app.route("/multipart-form-data-embedfile", methods=["POST"])
+def multipart_form_data_embedfile():
+    assert request.form["key1"] == "value1"
+    assert "Expect" not in request.headers
+
+    # `embedfile` parts are text fields: they are not present in `request.files`.
+    assert request.files == {}
+
+    assert request.form["field1"] == "Hello World!"
+    assert request.form["field2"] == "<div>Hello <b>World</b>!</div>"
+
+    return ""

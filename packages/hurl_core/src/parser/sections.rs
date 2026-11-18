@@ -16,8 +16,8 @@
  *
  */
 use crate::ast::{
-    Assert, Capture, Cookie, FilenameParam, FilenameValue, MultipartParam, Section, SectionValue,
-    SourceInfo, Whitespace,
+    Assert, Capture, Cookie, FilenameParam, FilenameValue, FilenameValueKind, MultipartParam,
+    Section, SectionValue, SourceInfo, Whitespace,
 };
 use crate::combinator::{optional, recover, zero_or_more};
 use crate::reader::{Pos, Reader};
@@ -221,7 +221,13 @@ fn file_param(reader: &mut Reader) -> ParseResult<FilenameParam> {
 }
 
 fn file_value(reader: &mut Reader) -> ParseResult<FilenameValue> {
-    try_literal("file,", reader)?;
+    let kind = match try_literal("embedfile,", reader) {
+        Ok(_) => FilenameValueKind::EmbedFile,
+        Err(_) => {
+            try_literal("file,", reader)?;
+            FilenameValueKind::File
+        }
+    };
     let space0 = zero_or_more_spaces(reader)?;
     let f = filename::parse(reader)?;
     let space1 = zero_or_more_spaces(reader)?;
@@ -255,6 +261,7 @@ fn file_value(reader: &mut Reader) -> ParseResult<FilenameValue> {
     };
 
     Ok(FilenameValue {
+        kind,
         space0,
         filename: f,
         space1,
@@ -506,6 +513,7 @@ mod tests {
         assert_eq!(
             file_value(&mut reader).unwrap(),
             FilenameValue {
+                kind: FilenameValueKind::File,
                 space0: Whitespace {
                     value: String::new(),
                     source_info: SourceInfo::new(Pos::new(1, 6), Pos::new(1, 6)),
@@ -533,6 +541,7 @@ mod tests {
         assert_eq!(
             file_value(&mut reader).unwrap(),
             FilenameValue {
+                kind: FilenameValueKind::File,
                 space0: Whitespace {
                     value: String::new(),
                     source_info: SourceInfo::new(Pos::new(1, 6), Pos::new(1, 6)),
@@ -560,6 +569,73 @@ mod tests {
                         source: "text/html".to_source(),
                     }],
                     SourceInfo::new(Pos::new(1, 17), Pos::new(1, 26)),
+                )),
+            }
+        );
+    }
+
+    #[test]
+    fn test_embedfile_value() {
+        let mut reader = Reader::new("embedfile,hello.txt;");
+        assert_eq!(
+            file_value(&mut reader).unwrap(),
+            FilenameValue {
+                kind: FilenameValueKind::EmbedFile,
+                space0: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 11), Pos::new(1, 11)),
+                },
+                filename: Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "hello.txt".to_string(),
+                        source: "hello.txt".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 11), Pos::new(1, 20)),
+                ),
+                space1: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 20), Pos::new(1, 20)),
+                },
+                space2: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 21), Pos::new(1, 21)),
+                },
+                content_type: None,
+            }
+        );
+        let mut reader = Reader::new("embedfile,hello.txt; text/html");
+        assert_eq!(
+            file_value(&mut reader).unwrap(),
+            FilenameValue {
+                kind: FilenameValueKind::EmbedFile,
+                space0: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 11), Pos::new(1, 11)),
+                },
+                filename: Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "hello.txt".to_string(),
+                        source: "hello.txt".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 11), Pos::new(1, 20)),
+                ),
+                space1: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 20), Pos::new(1, 20)),
+                },
+                space2: Whitespace {
+                    value: " ".to_string(),
+                    source_info: SourceInfo::new(Pos::new(1, 21), Pos::new(1, 22)),
+                },
+                content_type: Some(Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "text/html".to_string(),
+                        source: "text/html".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(1, 22), Pos::new(1, 31)),
                 )),
             }
         );
