@@ -24,8 +24,8 @@ use crate::util::path::ContextDir;
 
 use super::error::{RunnerError, RunnerErrorKind};
 use super::json::eval_json_value;
-use super::multiline::eval_multiline;
-use super::template::eval_template;
+use super::multiline::eval_multiline_bytes;
+use super::template::{eval_template, eval_template_bytes};
 use super::variable::VariableSet;
 
 pub fn eval_body(
@@ -43,12 +43,12 @@ pub fn eval_bytes(
 ) -> Result<http::Body, RunnerError> {
     match bytes {
         Bytes::OnelineString(value) => {
-            let value = eval_template(value, variables)?;
-            Ok(http::Body::Text(value))
+            let value = eval_template_bytes(value, variables)?;
+            eval_body_text(value)
         }
         Bytes::MultilineString(value) => {
-            let value = eval_multiline(value, variables)?;
-            Ok(http::Body::Text(value))
+            let value = eval_multiline_bytes(value, variables)?;
+            eval_body_text(value)
         }
         Bytes::Xml(value) => Ok(http::Body::Text(value.clone())),
         Bytes::Json(value) => {
@@ -62,6 +62,17 @@ pub fn eval_bytes(
             let filename = eval_template(filename, variables)?;
             Ok(http::Body::File(value, filename))
         }
+    }
+}
+
+/// Returns the body for a text template which may embed `bytes` captures.
+///
+/// The body remains textual when the rendered value is an UTF-8 string; if the value contains
+/// binary bytes (from a `bytes` capture), a binary body is returned so no data is lost.
+fn eval_body_text(value: Vec<u8>) -> Result<http::Body, RunnerError> {
+    match String::from_utf8(value) {
+        Ok(value) => Ok(http::Body::Text(value)),
+        Err(e) => Ok(http::Body::Binary(e.into_bytes())),
     }
 }
 
@@ -92,11 +103,14 @@ pub fn eval_file(
 mod tests {
     use std::path::Path;
 
-    use hurl_core::ast::{SourceInfo, TemplateElement, Whitespace};
+    use hurl_core::ast::{
+        Expr, ExprKind, Placeholder, SourceInfo, TemplateElement, Variable, Whitespace,
+    };
     use hurl_core::reader::Pos;
     use hurl_core::types::ToSource;
 
     use super::*;
+    use crate::runner::Value;
 
     #[test]
     fn test_body_file() {
@@ -165,6 +179,57 @@ mod tests {
         assert_eq!(
             error.source_info,
             SourceInfo::new(Pos::new(1, 7), Pos::new(1, 15))
+        );
+    }
+
+    /// A text body which embeds a `bytes` capture is evaluated to a binary body, so binary
+    /// data is not lost (see <https://github.com/Orange-OpenSource/hurl/issues/3752>).
+    #[test]
+    fn test_body_text_with_bytes() {
+        let mut variables = VariableSet::new();
+        variables.insert("data".to_string(), Value::Bytes(b"\x00\x01\x02\xff".to_vec()));
+
+        let bytes = Bytes::OnelineString(Template::new(
+            Some('`'),
+            vec![
+                TemplateElement::String {
+                    value: "prefix".to_string(),
+                    source: "prefix".to_source(),
+                },
+                TemplateElement::Placeholder(Placeholder {
+                    space0: Whitespace {
+                        value: String::new(),
+                        source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                    },
+                    expr: Expr {
+                        kind: ExprKind::Variable(Variable {
+                            name: "data".to_string(),
+                            source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                        }),
+                        source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                    },
+                    space1: Whitespace {
+                        value: String::new(),
+                        source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                    },
+                }),
+            ],
+            SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+        ));
+
+        assert_eq!(
+            eval_bytes(&bytes, &variables, &ContextDir::default()).unwrap(),
+            http::Body::Binary(b"prefix\x00\x01\x02\xff".to_vec())
+        );
+
+        // The same body, with a renderable value, remains textual.
+        variables.insert(
+            "data".to_string(),
+            Value::String("value".to_string()),
+        );
+        assert_eq!(
+            eval_bytes(&bytes, &variables, &ContextDir::default()).unwrap(),
+            http::Body::Text("prefixvalue".to_string())
         );
     }
 }

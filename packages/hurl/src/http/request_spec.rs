@@ -62,8 +62,16 @@ pub struct Method(pub String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MultipartParam {
-    Param(Param),
+    Param(FormParam),
     FileParam(FileParam),
+}
+
+/// A multipart form field: its value is a list of bytes because it can be built from captured
+/// binary data (see <https://github.com/Orange-OpenSource/hurl/issues/3752>).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FormParam {
+    pub name: String,
+    pub value: Vec<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -103,6 +111,12 @@ impl fmt::Display for MultipartParam {
             MultipartParam::Param(param) => write!(f, "{param}"),
             MultipartParam::FileParam(param) => write!(f, "{param}"),
         }
+    }
+}
+
+impl fmt::Display for FormParam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: {}", self.name, String::from_utf8_lossy(&self.value))
     }
 }
 

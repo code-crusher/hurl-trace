@@ -370,6 +370,42 @@ Content-Type: text/html
 
 > When using a multiline string body to send a multipart form data, files content must be inlined in the Hurl file.
 
+Values of `[Multipart]` params and multiline string bodies can use `bytes` captures: the captured
+binary data is re-injected as-is, without any loss.
+
+~~~hurl
+GET https://example.org/backup
+HTTP 200
+[Captures]
+backup: bytes
+
+POST https://example.org/restore
+[Multipart]
+backup: {{backup}}
+HTTP 200
+~~~
+
+With a multiline string body, one can also set the uploaded filename:
+
+~~~hurl
+GET https://example.org/backup
+HTTP 200
+[Captures]
+backup: bytes
+
+POST https://example.org/restore
+Content-Type: multipart/form-data; boundary="boundary"
+```
+--boundary
+Content-Disposition: form-data; name="backup"; filename="backup.bin"
+Content-Type: application/octet-stream
+
+{{backup}}
+--boundary--
+```
+HTTP 200
+~~~
+
 ### Cookies
 
 Optional list of session cookies for this request.

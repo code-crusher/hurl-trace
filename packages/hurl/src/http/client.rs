@@ -720,8 +720,8 @@ impl Client {
             let mut form = easy::Form::new();
             for param in params {
                 match param {
-                    MultipartParam::Param(Param { name, value }) => {
-                        form.part(name).contents(value.as_bytes()).add()?;
+                    MultipartParam::Param(param) => {
+                        form.part(&param.name).contents(&param.value).add()?;
                     }
                     MultipartParam::FileParam(FileParam {
                         name,

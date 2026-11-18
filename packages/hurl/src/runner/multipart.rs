@@ -25,7 +25,7 @@ use crate::util::path::ContextDir;
 
 use super::body::eval_file;
 use super::error::RunnerError;
-use super::template::eval_template;
+use super::template::{eval_template, eval_template_bytes};
 use super::variable::VariableSet;
 
 /// Evaluates a multipart param AST to a runtime multipart param, given a set of `variables` and
@@ -38,6 +38,19 @@ use super::variable::VariableSet;
 /// field2: file,example.txt;
 /// field3: file,example.zip; application/zip
 /// ```
+///
+/// The value of a simple param can embed captured `bytes`:
+///
+/// ```hurl
+/// GET https://example.org/backup
+/// HTTP 200
+/// [Captures]
+/// data: bytes
+///
+/// POST https://example.org/restore
+/// [Multipart]
+/// backup: {{data}}
+/// ```
 pub fn eval_multipart_param(
     multipart_param: &MultipartParam,
     variables: &VariableSet,
@@ -46,8 +59,8 @@ pub fn eval_multipart_param(
     match multipart_param {
         MultipartParam::Param(KeyValue { key, value, .. }) => {
             let name = eval_template(key, variables)?;
-            let value = eval_template(value, variables)?;
-            Ok(http::MultipartParam::Param(http::Param { name, value }))
+            let value = eval_template_bytes(value, variables)?;
+            Ok(http::MultipartParam::Param(http::FormParam { name, value }))
         }
         MultipartParam::FilenameParam(param) => {
             let file_param = eval_file_param(param, context_dir, variables)?;
@@ -106,7 +119,7 @@ fn eval_content_type(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::runner::Value;
+    use crate::runner::{RunnerErrorKind, Value};
     use hurl_core::ast::{
         Expr, ExprKind, LineTerminator, Placeholder, SourceInfo, Template, TemplateElement,
         Variable, Whitespace,
@@ -119,6 +132,113 @@ mod tests {
             value: String::from(" "),
             source_info: SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
         }
+    }
+
+    fn template_variable(name: &str) -> Template {
+        // {{name}}
+        Template::new(
+            None,
+            vec![TemplateElement::Placeholder(Placeholder {
+                space0: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                },
+                expr: Expr {
+                    kind: ExprKind::Variable(Variable {
+                        name: name.to_string(),
+                        source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                    }),
+                    source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                },
+                space1: Whitespace {
+                    value: String::new(),
+                    source_info: SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+                },
+            })],
+            SourceInfo::new(Pos::new(1, 1), Pos::new(1, 1)),
+        )
+    }
+
+    /// ```hurl
+    /// [Multipart]
+    /// backup: {{data}}
+    /// ```
+    #[test]
+    fn test_eval_multipart_param_bytes() {
+        let mut variables = VariableSet::default();
+        variables.insert("data".to_string(), Value::Bytes(b"\x00\x01\x02\xff".to_vec()));
+
+        let param = eval_multipart_param(
+            &MultipartParam::Param(KeyValue {
+                line_terminators: vec![],
+                space0: whitespace(),
+                key: Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "backup".to_string(),
+                        source: "backup".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                ),
+                space1: whitespace(),
+                space2: whitespace(),
+                value: template_variable("data"),
+                line_terminator0: LineTerminator {
+                    space0: whitespace(),
+                    comment: None,
+                    newline: whitespace(),
+                },
+            }),
+            &variables,
+            &ContextDir::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            param,
+            http::MultipartParam::Param(http::FormParam {
+                name: "backup".to_string(),
+                value: b"\x00\x01\x02\xff".to_vec(),
+            })
+        );
+    }
+
+    /// ```hurl
+    /// [Multipart]
+    /// field: {{undefined}}
+    /// ```
+    #[test]
+    fn test_eval_multipart_param_undefined_variable() {
+        let variables = VariableSet::default();
+        let param = eval_multipart_param(
+            &MultipartParam::Param(KeyValue {
+                line_terminators: vec![],
+                space0: whitespace(),
+                key: Template::new(
+                    None,
+                    vec![TemplateElement::String {
+                        value: "field".to_string(),
+                        source: "field".to_source(),
+                    }],
+                    SourceInfo::new(Pos::new(0, 0), Pos::new(0, 0)),
+                ),
+                space1: whitespace(),
+                space2: whitespace(),
+                value: template_variable("undefined"),
+                line_terminator0: LineTerminator {
+                    space0: whitespace(),
+                    comment: None,
+                    newline: whitespace(),
+                },
+            }),
+            &variables,
+            &ContextDir::default(),
+        );
+        assert_eq!(
+            param.err().unwrap().kind,
+            RunnerErrorKind::TemplateVariableNotDefined {
+                name: "undefined".to_string()
+            }
+        );
     }
 
     #[test]

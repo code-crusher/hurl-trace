@@ -190,6 +190,9 @@ my_data: bytes
 Like `body` capture, `bytes` capture works _after_ content encoding decompression (so the captured value is not
 affected by `Content-Encoding` response header).
 
+A `bytes` capture can be re-injected, without any loss, in a [multipart form data] param or in a body of a
+subsequent request.
+
 ### RawBytes capture
 
 Capture the entire body as a raw bytestream from the received HTTP response, _before_ any content decoding.
@@ -519,3 +522,4 @@ pass: header "token" redact
 [coercion to the JSONPath]: /docs/capturing-response.md#jsonpath-coercion
 [`--no-jsonpath-coercion` option]: /docs/manual.md#no-jsonpath-coercion
 [Hurl configuration file]: /docs/manual.md#configuration
+[multipart form data]: /docs/request.md#multipart-form-data

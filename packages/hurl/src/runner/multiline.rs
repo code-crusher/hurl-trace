@@ -21,7 +21,7 @@ use serde_json::json;
 
 use super::error::RunnerError;
 use super::json::eval_json_value;
-use super::template::eval_template;
+use super::template::{eval_template, eval_template_bytes};
 use super::variable::VariableSet;
 
 /// Renders to string a multiline body, given a set of variables.
@@ -51,6 +51,26 @@ pub fn eval_multiline(
                 }
             };
             Ok(body)
+        }
+    }
+}
+
+/// Renders to bytes a multiline body, given a set of variables.
+///
+/// Contrary to [`eval_multiline`], `bytes` captures are rendered as raw bytes: binary data can be
+/// re-injected without any loss in a request body.
+pub fn eval_multiline_bytes(
+    multiline: &MultilineString,
+    variables: &VariableSet,
+) -> Result<Vec<u8>, RunnerError> {
+    match &multiline.kind {
+        MultilineStringKind::Text(value) | MultilineStringKind::Xml(value) => {
+            eval_template_bytes(value, variables)
+        }
+        MultilineStringKind::Raw(value) => Ok(value.to_source().to_string().into_bytes()),
+        // JSON and GraphQL bodies are structured text: their encoding must stay textual.
+        MultilineStringKind::Json(_) | MultilineStringKind::GraphQl(_) => {
+            eval_multiline(multiline, variables).map(|s| s.into_bytes())
         }
     }
 }

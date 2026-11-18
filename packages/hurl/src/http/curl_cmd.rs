@@ -28,7 +28,7 @@ use super::header::{CONTENT_TYPE, Header, HeaderVec};
 use super::options::ClientOptions;
 use super::param::Param;
 use super::request::{CredentialForwarding, FollowLocation, IpResolve, RequestedHttpVersion};
-use super::request_spec::{Body, FileParam, Method, MultipartParam, RequestSpec};
+use super::request_spec::{Body, FileParam, FormParam, Method, MultipartParam, RequestSpec};
 
 /// Represents a curl command, with arguments.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -217,7 +217,7 @@ fn body_params(
     }
     for param in request_spec.multipart.iter() {
         args.push(Arg::plain("--form"));
-        args.push(Arg::quoted(&param.curl_arg(context_dir)));
+        args.push(param.curl_arg(context_dir));
     }
 
     if request_spec.body.bytes().is_empty() {
@@ -416,16 +416,28 @@ impl Param {
         let value = escape_url(&self.value);
         format!("{name}={value}")
     }
+}
 
-    fn curl_arg(&self) -> String {
+impl FormParam {
+    /// Returns the `--form` curl argument for this param.
+    ///
+    /// Binary values (that can come from captured bytes) can not be rendered as a plain string:
+    /// they're rendered as a shell `$'...'` string (the same encoding than binary bodies).
+    fn curl_arg(&self) -> Arg {
         let name = &self.name;
-        let value = &self.value;
-        format!("{name}={value}")
+        match std::str::from_utf8(&self.value) {
+            Ok(value) => Arg::quoted(&format!("{name}={value}")),
+            Err(_) => {
+                let mut bytes = format!("{name}=").into_bytes();
+                bytes.extend_from_slice(&self.value);
+                Arg::Bytes(bytes)
+            }
+        }
     }
 }
 
 impl MultipartParam {
-    fn curl_arg(&self, context_dir: &ContextDir) -> String {
+    fn curl_arg(&self, context_dir: &ContextDir) -> Arg {
         match self {
             MultipartParam::Param(param) => param.curl_arg(),
             MultipartParam::FileParam(FileParam {
@@ -436,7 +448,7 @@ impl MultipartParam {
             }) => {
                 let path = context_dir.resolved_path(Path::new(filename));
                 let value = format!("@{};type={}", path.to_string_lossy(), content_type);
-                format!("{name}={value}")
+                Arg::quoted(&format!("{name}={value}"))
             }
         }
     }
@@ -1210,22 +1222,6 @@ mod tests {
     fn param_curl_args() {
         assert_eq!(
             Param {
-                name: "param1".to_string(),
-                value: "value1".to_string(),
-            }
-            .curl_arg(),
-            "param1=value1".to_string()
-        );
-        assert_eq!(
-            Param {
-                name: "param2".to_string(),
-                value: String::new(),
-            }
-            .curl_arg(),
-            "param2=".to_string()
-        );
-        assert_eq!(
-            Param {
                 name: "param3".to_string(),
                 value: "a=b".to_string(),
             }
@@ -1239,6 +1235,35 @@ mod tests {
             }
             .curl_arg_escape(),
             "param4=1%2C2%2C3".to_string()
+        );
+    }
+
+    #[test]
+    fn form_param_curl_args() {
+        assert_eq!(
+            FormParam {
+                name: "param1".to_string(),
+                value: b"value1".to_vec(),
+            }
+            .curl_arg(),
+            Arg::quoted("param1=value1")
+        );
+        assert_eq!(
+            FormParam {
+                name: "param2".to_string(),
+                value: vec![],
+            }
+            .curl_arg(),
+            Arg::quoted("param2=")
+        );
+        // A binary value (that can embed captured bytes) is rendered as a shell `$'...'` string.
+        assert_eq!(
+            FormParam {
+                name: "param3".to_string(),
+                value: vec![0, 1, 2, 0xff, 0xfe],
+            }
+            .curl_arg(),
+            Arg::Bytes(b"param3=\x00\x01\x02\xff\xfe".to_vec())
         );
     }
 
