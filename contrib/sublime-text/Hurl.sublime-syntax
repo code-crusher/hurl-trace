@@ -107,7 +107,7 @@ contexts:
         - match: '}}'
           scope: punctuation.definition.template.end.hurl
           pop: true
-        - match: '\b(getEnv|newDate|newUuid)\b'
+        - match: '\b(getEnv|newDate|newUuid|randomBool|randomEmail|randomFirstName|randomFullName|randomInt|randomLastName|randomString|randomWord)\b'
           scope: support.function.builtin.hurl
         - include: filter-keywords
         - include: quoted-strings
