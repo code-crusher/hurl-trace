@@ -647,7 +647,7 @@ This is a cli-only option.
 
 #### --test {#test}
 
-Activate test mode: with this, the HTTP response is not outputted anymore, progress is reported for each Hurl file tested, and a text summary is displayed when all files have been run.
+Activate test mode: with this, the HTTP response is not outputted anymore (unless an explicit [`--output`](#output) is used), progress is reported for each Hurl file tested, and a text summary is displayed when all files have been run.
 
 In test mode, files are executed in parallel. To run test in a sequential way use `--jobs 1`.
 

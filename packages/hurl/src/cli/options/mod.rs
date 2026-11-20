@@ -325,9 +325,12 @@ fn resolve_implicit(context: &RunContext, default_options: CliOptions) -> CliOpt
     if let BoolOpt::Auto = options.parallel {
         options.parallel = BoolOpt::Set(options.test);
     }
-    // No output for test mode
+    // No output for test mode, unless an output has been explicitly set with --output: in this
+    // case, the output is always honored, even in test mode.
+    // Note: an explicit --no-output still suppresses any output, even if --output is also used.
     if let OutputType::ResponseBody = options.output_type
         && options.test
+        && options.output.is_none()
     {
         options.output_type = OutputType::NoOutput;
     }
@@ -629,6 +632,7 @@ mod tests {
     use crate::cli::options::{EnvVars, HttpVersion, RunContext, TlsVersion};
     use crate::cli::{OutputType, options};
     use hurl::pretty::PrettyMode;
+    use hurl::runner::Output;
     use std::collections::HashMap;
     use std::ffi::OsString;
     use std::{env, fs};
@@ -738,6 +742,69 @@ mod tests {
         assert!(opts.progress_bar.get());
         assert!(opts.parallel.get());
         assert_eq!(opts.output_type, OutputType::NoOutput);
+    }
+
+    #[test]
+    fn test_output_honored_in_test_mode() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let file = tmp_hurl_file("foo.hurl");
+        let env_vars = HashMap::new();
+        let env_vars = EnvVars::new(env_vars);
+
+        // With --output <file>, the output is honored in test mode.
+        let args = ["hurl", "--test", "--output", "out.bin", &file];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert!(opts.test);
+        assert_eq!(opts.output_type, OutputType::ResponseBody);
+        assert_eq!(opts.output, Some(Output::new("out.bin")));
+
+        // With --output -, the output is honored in test mode.
+        let args = ["hurl", "--test", "--output", "-", &file];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(opts.output_type, OutputType::ResponseBody);
+        assert_eq!(opts.output, Some(Output::Stdout));
+
+        // An explicit --no-output still suppresses output in test mode.
+        let args = [
+            "hurl",
+            "--test",
+            "--no-output",
+            "--output",
+            "out.bin",
+            &file,
+        ];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(opts.output_type, OutputType::NoOutput);
+        assert_eq!(opts.output, Some(Output::new("out.bin")));
+    }
+
+    #[test]
+    fn test_output_honored_in_test_mode_from_config_file() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let file = tmp_hurl_file("foo.hurl");
+
+        // Test mode is set by the config file, output is set on the command line.
+        let home = tmp_hurl_config("home_for_test_output", "--test");
+        let env_vars = HashMap::from([("HOME".to_string(), home)]);
+        let env_vars = EnvVars::new(env_vars);
+        let args = ["hurl", "--output", "out.bin", &file];
+        let args = args_from(&args);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert!(opts.test);
+        assert_eq!(opts.output_type, OutputType::ResponseBody);
+        assert_eq!(opts.output, Some(Output::new("out.bin")));
     }
 
     #[test]
