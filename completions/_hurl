@@ -61,7 +61,7 @@ _hurl() {
     '--no-cookie-store[Do not use cookie store between requests]' \
     '*--no-header[Remove header(s) sent to server]: :' \
     '--no-jsonpath-coercion[Disable JSONPath result coercion]' \
-    '--no-output[Suppress output. By default, Hurl outputs the body of the last response]' \
+    '--no-output[Suppress output of the last response body. Response headers are still outputted with --include]' \
     '--no-pretty[Do not prettify response output]' \
     '--no-proxy[List of hosts which do not use proxy]: :' \
     '--ntlm[Tell Hurl to use NTLM authentication]' \

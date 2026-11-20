@@ -120,10 +120,10 @@ fn print_output(
     stdout: &mut Stdout,
     append: bool,
 ) -> Result<(), CliError> {
-    let output_last_body =
-        hurl_result.success && matches!(options.output_type, cli::OutputType::ResponseBody);
-    if output_last_body {
-        let result = output::write_last_body(
+    // `--no-output` suppresses the body response. When `--include` is used, the last response
+    // headers are still outputted, without the body.
+    let result = match options.output_type {
+        cli::OutputType::ResponseBody if hurl_result.success => output::write_last_body(
             hurl_result,
             options.include,
             options.color_stdout.get(),
@@ -131,16 +131,26 @@ fn print_output(
             options.output.as_ref(),
             stdout,
             append,
-        );
-        if let Err(e) = result {
-            let message = e.render(
-                &filename.to_string(),
-                content,
-                None,
-                OutputFormat::Terminal(options.color_stderr.get()),
-            );
-            return Err(CliError::OutputWrite(message));
+        ),
+        cli::OutputType::NoOutput if hurl_result.success && options.include => {
+            output::write_last_headers(
+                hurl_result,
+                options.color_stdout.get(),
+                options.output.as_ref(),
+                stdout,
+                append,
+            )
         }
+        _ => Ok(()),
+    };
+    if let Err(e) = result {
+        let message = e.render(
+            &filename.to_string(),
+            content,
+            None,
+            OutputFormat::Terminal(options.color_stderr.get()),
+        );
+        return Err(CliError::OutputWrite(message));
     }
     if matches!(options.output_type, cli::OutputType::Json) {
         let result = output::write_json(
@@ -244,7 +254,10 @@ impl cli::OutputType {
                 pretty,
             },
             cli::OutputType::Json => parallel::runner::OutputType::Json,
-            cli::OutputType::NoOutput => parallel::runner::OutputType::NoOutput,
+            cli::OutputType::NoOutput => parallel::runner::OutputType::NoOutput {
+                include_headers,
+                color,
+            },
         }
     }
 }

@@ -33,6 +33,7 @@ Enhancements:
 
 Bugs Fixed:
 
+* Fix --no-output not outputting response headers with --include [#3421](https://github.com/Orange-OpenSource/hurl/issues/3421)
 * Fix misleading error message for not-equal predicate [#2841](https://github.com/Orange-OpenSource/hurl/issues/2841)
 * Fix variable option values starting with a number or boolean [#5028](https://github.com/Orange-OpenSource/hurl/issues/5028)
 * Fix recorded headers when connecting to proxy with CONNECT [#5091](https://github.com/Orange-OpenSource/hurl/issues/5091)

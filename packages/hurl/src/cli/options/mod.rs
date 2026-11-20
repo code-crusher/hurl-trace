@@ -325,11 +325,12 @@ fn resolve_implicit(context: &RunContext, default_options: CliOptions) -> CliOpt
     if let BoolOpt::Auto = options.parallel {
         options.parallel = BoolOpt::Set(options.test);
     }
-    // No output for test mode
-    if let OutputType::ResponseBody = options.output_type
-        && options.test
-    {
-        options.output_type = OutputType::NoOutput;
+    // No output for test mode: the HTTP response is not outputted, even when `--include` is used.
+    if options.test {
+        if let OutputType::ResponseBody = options.output_type {
+            options.output_type = OutputType::NoOutput;
+        }
+        options.include = false;
     }
 
     // If stdout is not a terminal, disable prettifying
@@ -759,6 +760,50 @@ mod tests {
         assert!(!opts.progress_bar.get());
         assert!(opts.parallel.get());
         assert_eq!(opts.output_type, OutputType::NoOutput);
+    }
+
+    #[test]
+    fn test_mode_disable_include() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let file = tmp_hurl_file("foo.hurl");
+        let env_vars = HashMap::new();
+        let env_vars = EnvVars::new(env_vars);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+
+        // Test mode disables `--include`: the HTTP response is not outputted.
+        let args = ["hurl", "--test", "--include", &file];
+        let args = args_from(&args);
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(opts.output_type, OutputType::NoOutput);
+        assert!(!opts.include);
+
+        // Test mode disables `--include`, even with an explicit `--no-output`.
+        let args = ["hurl", "--test", "--no-output", "--include", &file];
+        let args = args_from(&args);
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(opts.output_type, OutputType::NoOutput);
+        assert!(!opts.include);
+    }
+
+    #[test]
+    fn no_output_keep_include_outside_test_mode() {
+        let stdin_term = true;
+        let stdout_term = true;
+        let stderr_term = true;
+        let file = tmp_hurl_file("foo.hurl");
+        let env_vars = HashMap::new();
+        let env_vars = EnvVars::new(env_vars);
+        let ctx = RunContext::new(&env_vars, stdin_term, stdout_term, stderr_term);
+
+        // Outside test mode, `--no-output` only suppresses the body response: `--include` is kept
+        // so the last response headers are still outputted.
+        let args = ["hurl", "--no-output", "--include", &file];
+        let args = args_from(&args);
+        let opts = options::parse(args, &ctx, &env_vars).unwrap();
+        assert_eq!(opts.output_type, OutputType::NoOutput);
+        assert!(opts.include);
     }
 
     #[test]

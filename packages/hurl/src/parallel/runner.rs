@@ -82,8 +82,9 @@ pub enum OutputType {
     },
     /// The whole Hurl file run is exported in a structured JSON export on standard output.
     Json,
-    /// Nothing is outputted on standard output when a Hurl file run is completed.
-    NoOutput,
+    /// Nothing is outputted on standard output when a Hurl file run is completed, except the last
+    /// HTTP response headers when `include_headers` is true.
+    NoOutput { include_headers: bool, color: bool },
 }
 
 const MAX_RUNNING_DISPLAYED: usize = 8;
@@ -353,7 +354,31 @@ impl ParallelRunner {
                     return Err(JobError::OutputWrite(error.to_string()));
                 }
             }
-            OutputType::NoOutput => {}
+            OutputType::NoOutput {
+                include_headers,
+                color,
+            } => {
+                // `--no-output` suppresses the body response, but the last response headers are
+                // still outputted when `--include` is used.
+                if hurl_result.success && include_headers {
+                    let result = output::write_last_headers(
+                        hurl_result,
+                        color,
+                        filename_out,
+                        stdout,
+                        append,
+                    );
+                    if let Err(e) = result {
+                        let message = e.render(
+                            &filename_in.to_string(),
+                            content,
+                            None,
+                            OutputFormat::Terminal(color),
+                        );
+                        return Err(JobError::OutputWrite(message));
+                    }
+                }
+            }
         }
         Ok(())
     }

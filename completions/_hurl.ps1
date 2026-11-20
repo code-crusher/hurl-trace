@@ -66,7 +66,7 @@ Register-ArgumentCompleter -Native -CommandName 'hurl' -ScriptBlock {
             [CompletionResult]::new('--no-cookie-store', 'no-cookie-store', [CompletionResultType]::ParameterName, 'Do not use cookie store between requests')
             [CompletionResult]::new('--no-header', 'no-header', [CompletionResultType]::ParameterName, 'Remove header(s) sent to server')
             [CompletionResult]::new('--no-jsonpath-coercion', 'no-jsonpath-coercion', [CompletionResultType]::ParameterName, 'Disable JSONPath result coercion')
-            [CompletionResult]::new('--no-output', 'no-output', [CompletionResultType]::ParameterName, 'Suppress output. By default, Hurl outputs the body of the last response')
+            [CompletionResult]::new('--no-output', 'no-output', [CompletionResultType]::ParameterName, 'Suppress output of the last response body. Response headers are still outputted with --include')
             [CompletionResult]::new('--no-pretty', 'no-pretty', [CompletionResultType]::ParameterName, 'Do not prettify response output')
             [CompletionResult]::new('--no-proxy', 'no-proxy', [CompletionResultType]::ParameterName, 'List of hosts which do not use proxy')
             [CompletionResult]::new('--ntlm', 'ntlm', [CompletionResultType]::ParameterName, 'Tell Hurl to use NTLM authentication')

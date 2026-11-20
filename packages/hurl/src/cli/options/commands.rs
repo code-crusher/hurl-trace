@@ -450,7 +450,7 @@ pub fn no_jsonpath_coercion() -> clap::Arg {
 pub fn no_output() -> clap::Arg {
     clap::Arg::new("no_output")
         .long("no-output")
-        .help("Suppress output. By default, Hurl outputs the body of the last response")
+        .help("Suppress output of the last response body. Response headers are still outputted with --include")
         .help_heading("Output options")
         .conflicts_with("json")
         .action(clap::ArgAction::SetTrue)

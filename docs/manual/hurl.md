@@ -480,7 +480,10 @@ This is a cli-only option.
 
 #### --no-output {#no-output}
 
-Suppress output. By default, Hurl outputs the body of the last response.
+Suppress output of the last response body. By default, Hurl outputs the body of the last response.
+
+Contrary to the body, the last response headers are still outputted on standard output when
+[`-i, --include`](#include) is used.
 
 Environment variables: HURL_NO_OUTPUT
 

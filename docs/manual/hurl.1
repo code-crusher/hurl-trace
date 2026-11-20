@@ -1,4 +1,4 @@
-.TH hurl 1 "06 Nov 2026" "hurl 9.0.0" " Hurl Manual"
+.TH hurl 1 "20 Nov 2026" "hurl 9.0.0" " Hurl Manual"
 .SH NAME
 
 hurl - run and test HTTP requests.
@@ -464,7 +464,10 @@ This is a cli-only option.
 
 .IP "--no-output "
 
-Suppress output. By default, Hurl outputs the body of the last response.
+Suppress output of the last response body. By default, Hurl outputs the body of the last response.
+
+Contrary to the body, the last response headers are still outputted on standard output when
+\fI-i, --include\fP is used.
 
 Environment variables: HURL_NO_OUTPUT
 

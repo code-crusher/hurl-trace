@@ -53,12 +53,34 @@ pub fn write_last_body(
     Ok(())
 }
 
+/// Writes the `hurl_result` last response headers to the file `filename_out`, without the body
+/// response.
+///
+/// When `filename_out` is `None`, standard output is used.
+/// When `append` is true, any existing file will be appended instead of being truncated.
+pub fn write_last_headers(
+    hurl_result: &HurlResult,
+    color: bool,
+    filename_out: Option<&Output>,
+    stdout: &mut Stdout,
+    append: bool,
+) -> Result<(), OutputError> {
+    // Get the last call of the Hurl result.
+    let Some(last_entry) = &hurl_result.entries.last() else {
+        return Ok(());
+    };
+    let source_info = last_entry.source_info;
+    last_entry.write_headers(filename_out, stdout, color, append, source_info)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
     use std::time::Duration;
 
     use crate::http::{Call, Header, HeaderVec, HttpVersion, Request, Response, Url};
+    use crate::output;
     use crate::output::write_last_body;
     use crate::pretty::PrettyMode;
     use crate::runner::{EntryResult, HurlResult, Output};
@@ -181,6 +203,27 @@ mod tests {
              x-baz: zzz\n\
              \n\
              {\"say\": \"Hello World!\"}"
+        );
+    }
+
+    #[test]
+    fn write_last_headers() {
+        let result = hurl_result_json();
+        let color = false;
+        let output = Some(Output::Stdout);
+        let mut stdout = Stdout::new(WriteMode::Buffered);
+
+        output::write_last_headers(&result, color, output.as_ref(), &mut stdout, true).unwrap();
+        let stdout = String::from_utf8(stdout.buffer().to_vec()).unwrap();
+        assert_eq!(
+            stdout,
+            "HTTP/3 204\n\
+             x-foo: xxx\n\
+             x-bar: yyy0\n\
+             x-bar: yyy1\n\
+             x-bar: yyy2\n\
+             x-baz: zzz\n\
+             \n"
         );
     }
 }

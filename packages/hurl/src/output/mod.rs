@@ -29,4 +29,4 @@ mod raw;
 
 pub use self::error::OutputError;
 pub use self::json::write_json;
-pub use self::raw::write_last_body;
+pub use self::raw::{write_last_body, write_last_headers};

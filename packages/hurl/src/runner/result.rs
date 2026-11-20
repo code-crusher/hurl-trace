@@ -205,6 +205,57 @@ impl EntryResult {
         append: bool,
         source_info: SourceInfo,
     ) -> Result<(), RunnerError> {
+        self.write(
+            output,
+            stdout,
+            include_headers,
+            true,
+            color,
+            pretty,
+            append,
+            source_info,
+        )
+    }
+
+    /// Writes the last HTTP response headers of this entry result to this `output`, without the
+    /// body response.
+    /// This method doesn't check if the response has write access to this output using a context
+    /// directory. Write check access has to be made by the caller of this method
+    /// TODO: enforce this by a proper type on output?
+    pub fn write_headers(
+        &self,
+        output: Option<&Output>,
+        stdout: &mut Stdout,
+        color: bool,
+        append: bool,
+        source_info: SourceInfo,
+    ) -> Result<(), RunnerError> {
+        self.write(
+            output,
+            stdout,
+            true,
+            false,
+            color,
+            PrettyMode::None,
+            append,
+            source_info,
+        )
+    }
+
+    /// Writes the last HTTP response of this entry result to this `output`, with or without the
+    /// body response, depending on `include_body`.
+    #[allow(clippy::too_many_arguments)]
+    fn write(
+        &self,
+        output: Option<&Output>,
+        stdout: &mut Stdout,
+        include_headers: bool,
+        include_body: bool,
+        color: bool,
+        pretty: PrettyMode,
+        append: bool,
+        source_info: SourceInfo,
+    ) -> Result<(), RunnerError> {
         let Some(call) = self.calls.last() else {
             return Ok(());
         };
@@ -218,42 +269,44 @@ impl EntryResult {
             out.push(b'\n');
         }
 
-        let body = if self.compressed {
-            &response
-                .uncompress_body()
-                .map_err(|e| RunnerError::new(source_info, RunnerErrorKind::Http(e), false))?
-        } else {
-            &response.body
-        };
+        if include_body {
+            let body = if self.compressed {
+                &response
+                    .uncompress_body()
+                    .map_err(|e| RunnerError::new(source_info, RunnerErrorKind::Http(e), false))?
+            } else {
+                &response.body
+            };
 
-        // Prettify only JSON-like response for the moment.
-        let pretty = match pretty {
-            PrettyMode::Automatic => response.is_json(),
-            PrettyMode::Force => true,
-            PrettyMode::None => false,
-        };
-        if pretty {
-            let color_pretty = if color { Color::Ansi } else { Color::NoColor };
-            // On pretty-print error, discard partial output and fall back to raw bytes.
-            let before_len = out.len();
-            if pretty::format(body, color_pretty, &mut out).is_err() {
-                out.truncate(before_len);
+            // Prettify only JSON-like response for the moment.
+            let pretty = match pretty {
+                PrettyMode::Automatic => response.is_json(),
+                PrettyMode::Force => true,
+                PrettyMode::None => false,
+            };
+            if pretty {
+                let color_pretty = if color { Color::Ansi } else { Color::NoColor };
+                // On pretty-print error, discard partial output and fall back to raw bytes.
+                let before_len = out.len();
+                if pretty::format(body, color_pretty, &mut out).is_err() {
+                    out.truncate(before_len);
+                    out.extend_from_slice(body);
+                }
+            } else {
                 out.extend_from_slice(body);
             }
-        } else {
-            out.extend_from_slice(body);
-        }
 
-        // We replicate curl's checks for binary output: a warning is displayed when user hasn't
-        // used `--output` option and the response is considered as a binary content. If user has used
-        // `--output` whether to save to a file, or to redirect output to standard output (`--output -`)
-        // we don't display any warning.
-        if output.is_none() && stdout.is_terminal() && is_binary(&out) {
-            return Err(RunnerError::new(
-                source_info,
-                RunnerErrorKind::BinaryOutput,
-                false,
-            ));
+            // We replicate curl's checks for binary output: a warning is displayed when user hasn't
+            // used `--output` option and the response is considered as a binary content. If user has used
+            // `--output` whether to save to a file, or to redirect output to standard output (`--output -`)
+            // we don't display any warning.
+            if output.is_none() && stdout.is_terminal() && is_binary(&out) {
+                return Err(RunnerError::new(
+                    source_info,
+                    RunnerErrorKind::BinaryOutput,
+                    false,
+                ));
+            }
         }
 
         let output = output.unwrap_or(&Output::Stdout);

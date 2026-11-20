@@ -101,8 +101,8 @@ Output options:
   -i, --include                Include the HTTP headers in the output
       --json                   Output each Hurl file result to JSON
       --no-color               Do not colorize output
-      --no-output              Suppress output. By default, Hurl outputs the body of the last
-                               response
+      --no-output              Suppress output of the last response body. Response headers are still
+                               outputted with --include
       --no-pretty              Do not prettify response output
   -o, --output <FILE>          Write to FILE instead of stdout
       --pretty                 Prettify JSON response output

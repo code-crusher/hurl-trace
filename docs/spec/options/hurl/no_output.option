@@ -1,10 +1,13 @@
 name: no_output
 long: no-output
-help: Suppress output. By default, Hurl outputs the body of the last response
+help: Suppress output of the last response body. Response headers are still outputted with --include
 help_heading: Output options
 conflict: json
 cli_only: true
 config_file: true
 env_var: HURL_NO_OUTPUT
 ---
-Suppress output. By default, Hurl outputs the body of the last response.
+Suppress output of the last response body. By default, Hurl outputs the body of the last response.
+
+Contrary to the body, the last response headers are still outputted on standard output when
+[`-i, --include`](#include) is used.
